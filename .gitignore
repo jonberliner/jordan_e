@@ -1,0 +1,8 @@
+*.db
+*.pyx
+*.c
+*.so
+.psiturk_history
+build
+server.log
+

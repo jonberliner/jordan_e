@@ -1,0 +1,97 @@
+<!doctype html>
+<!--
+  The consent.html displays the text of your IRB-approved
+  consent form.  Even if you are not required to provide
+  a consent form, it is helpful to use this form to
+  describe what people can do if an error comes up, etc...
+
+-->
+<html>
+    <head>
+        <title>Psychology Experiment - Informed Consent Form</title>
+        <link rel=stylesheet href="/static/css/bootstrap.min.css" type="text/css">
+        <link rel=stylesheet href="/static/css/style.css" type="text/css">
+        <script type="text/javascript">
+            function onexit() {
+              self.close(); // no harm, no foul here
+            }
+        </script>
+    </head>
+    <body>
+        <div id="container-consent">
+            <div id="consent">
+                <h1>We need your consent to proceed</h1>
+                <hr>
+                <div class="legal well">
+
+                    <h4>PRINCETON UNIVERSITY INSTITUTIONAL REVIEW BOARD</h4>
+
+                    <h4>TITLE OF RESEARCH: Templeton Cognitive Control: Neural bases of goal learning and hierarchical control</h4>
+
+                    <h4>INVESTIGATORS:</h4>
+                    <ul>
+                        <li>Matthew Botvinick, M.D., Ph.D.</li>
+                        <li>Yael Niv, Ph.D.</li>
+                        <li>Leigh Nystrom, Ph.D.</li>
+                        <li>Carlos Diuk, Ph.D.</li>
+                        <li>Amitai Shenhav, Ph.D.</li>
+                        <li>Ida Momennejad, Ph.D.</li>
+                        <li>Stephanie Chan</li>
+                        <li>José Ribas-Fernandes</li>
+                        <li>Jonathan Berliner</li>
+                        <li>Angela Radulescu</li>
+                        <li>Mark Straccia</li>
+                        <li>Debbie Yee</li>
+                        <li>Jin Hyun Cheong</li>
+                    </ul>
+                        <p>The following informed consent is required by Princeton University for any person involved in a research study conducted by investigators at the University.  This study has been approved by the University's Institutional Review Board for Human Subjects.</p>
+                        <p>You have:</p>
+                        <p>A.  Provided me with a detailed explanation of the procedures to be followed in the project, including an identification of those that are experimental.</p>
+                        <p><strong>
+                            I will be presented with a series of stimuli on a computer screen and asked to perform simple decisions in response to these stimuli.
+                            I will receive detailed instructions on how to perform the task.
+                            The activities in the study carry no risk to me as they only involve operating a desktop computer.
+                            The task involved in the experiment does require some mental effort.
+                            I will receive no direct benefit from this research other than monetary payment or course credit you will receive for participation.
+                            I may learn something about psychology and may derive satisfaction from knowing that my participation has advanced scientific understanding of human cognition.
+                            I understand that the study staff will not make any clinical diagnosis based on results from this study.
+                        </strong></p>
+
+                    <p>I understand that:</p>
+                    <ol type='A'>
+                        <li>My participation is voluntary, and I may withdraw my consent and discontinue participation in the project at any time.  My refusal to participate will not result in any penalty.</li>
+                        <li>By signing this agreement, I do not waive any legal rights or release Princeton University, its agents, or you from liability for negligence.</li>
+                        <li>The behavioral study will take no longer than two hours of active participation.</li>
+                        <li>I will be paid the amount advertised upon accepting this experiment, at a rate determined to approximate $7.25 per hour of active work. Depending on which group I am assigned to within the experiment, I may receive an additional sum in ‘rewards’ earned during the computer task I will perform.</li>
+                        <li>I understand that if I wish to obtain further information regarding this research study I may contact Dr. Matthew Botvinick  via email at matthewb@princeton.edu or by phone at  609-258-1280.</li>
+                    </ol>
+                    <h4>I hereby give my consent to be the subject of your research.</h4>
+
+
+
+                    <button type="button" class="btn btn-default btn-sm" onClick="window.print();">
+                    <span class="glyphicon glyphicon-print"></span> Print a copy of this
+                    </button>
+                </div>
+
+                <hr>
+                <h4>Do you understand and consent to these terms?</h4>
+                <br>
+
+                <center>
+                    <button type="button" class="btn btn-primary btn-lg" onClick="window.location='/exp?hitId={{ hitid }}&assignmentId={{ assignmentid }}&workerId={{ workerid }}'">
+                    <span class="glyphicon glyphicon-ok"></span> I agree
+                    </button>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    <button type="button" class="btn btn-danger btn-lg" onClick="onexit()">
+                    <span class="glyphicon glyphicon-ban-circle"></span> No thanks, I do not want to do this HIT
+                    </button>
+                </center>
+
+            </div>
+        </div>
+    </body>
+</html>
+
