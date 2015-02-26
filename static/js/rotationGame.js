@@ -87,7 +87,7 @@ var rotationGame = function(){
 
     groundLine.addEventListener('click', function(){
         pxDrill = stage.mouseX;
-        nextTrial(itrial, pxDrill);
+        nextTrial(pxDrill);
     });
 
 
@@ -137,10 +137,12 @@ var rotationGame = function(){
                     stage.addChild(groundLine_glow);
                     stage.addChild(groundLine);
                     stage.update();
+
+                    console.log('init_experiment was called')
                 });
 
 
-    function nextTrial(itrial, pxDrill){
+    function nextTrial(pxDrill){
         jsb_recordTurkData(function(){
             // if have more trials to go...
             console.log('trial '+itrial.toString()+' saved successfully.');
@@ -150,7 +152,7 @@ var rotationGame = function(){
                 signederror = xDrill - xOpt;
                 yDrill = errorToPoints(Math.abs(signederror)); // get the reward
                 expScore += yDrill;
-                drill_history.push({'x': xDrill,
+                drill_history.push({'px': pxDrill,
                                     'y': yDrill,
                                     'itrial': itrial});
                 // update feedback stage
@@ -160,6 +162,8 @@ var rotationGame = function(){
                 obs_array = make_vis_obs_array(drill_history,
                     function(elt){return nlast(elt, itrial, NLASTTOSHOW)});
                 stageArray(obs_array);
+                itrial += 1;
+                console.log(itrial)
             }
             else {
                 // endgame goes here
@@ -183,30 +187,30 @@ var rotationGame = function(){
 //// HELPER FUNCTIONS
     function nlast(elt, currtrial, n) {
         // says yes if this elt's trial was one of the n last trials
-        return currtrial - elt.itrial < n;
+        var good = currtrial - elt.itrial < n;
+        return good;
     }
 
 
     function make_vis_obs_array(drill_history, critfcn) {
         // takes drill_history, filters by crit, returns array of ScalarObs
-        var currtrial = drill_history[drill_history.length-1].itrial
         var to_show = drill_history.filter(critfcn);  // filter to only shown
         // make obs for all valid sams in drill_history
-        var obs_array = drill_history.map(
-            function(elt){return ScalarObs(elt.x, elt.y)}
+        var obs_array = to_show.map(
+            function(elt){return ScalarObs(elt.px, GROUNDLINEY, elt.y)}
         );
         return obs_array;
     }
 
 
-    function ScalarObs(x, y, score){
-        // score to be placed at drill location
+    function ScalarObs(x, y, val){
+        // val to be placed at drill location
         var obs = new createjs.Text('',
                                     STYLE.scalar_obs.TEXTSTYLE,
                                     STYLE.scalar_obs.COLOR);
         obs.x = x;
-        obs.y = GROUNDLINEY;
-        obs.text = y.toString();
+        obs.y = y;
+        obs.text = val.toString();
         obs.visible = true;
         return obs;
     }
@@ -229,8 +233,8 @@ var rotationGame = function(){
     }
 
 
-    function errorToPoints(error) {
-        return Math.round((1 - Math.abs(XRANGE - error)) * 100);
+    function errorToPoints(unsignederror) {
+        return Math.round((1 - (unsignederror/XRANGE)) * 100);
     }
 
 
