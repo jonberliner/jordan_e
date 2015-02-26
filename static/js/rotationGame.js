@@ -7,6 +7,8 @@ var rotationGame = function(){
     var canvas = document.getElementById('easel');
     var W = canvas.width;
     var H = canvas.height;
+    // groundline is homage to the mining task (it's the groung)
+    // this is the arc where people can click (i.e. the "choice set")
     var GROUNDLINEY = H - H*0.5;
     var GROUNDLINE2BOTTOM = H - GROUNDLINEY;
     var stage = new createjs.Stage(canvas);
@@ -66,7 +68,9 @@ var rotationGame = function(){
 
     // groundLine Graphics
     var groundLine = new createjs.Shape();
-    groundLine.graphics.s(STYLE.groundLine.STROKECOLOR).
+    groundLine.graphics.Arc(XSTARTPOINT, YSTARTPOINT, RADARCLINE,
+                            MINARCDEG, MAXARCDEG, true).
+                        s(STYLE.groundLine.STROKECOLOR).
                         ss(STYLE.groundLine.STROKESIZE, 0, 0).
                         mt(0, GROUNDLINEY). // GROUNDLINE HEIGHT
                         lt(W, GROUNDLINEY);
