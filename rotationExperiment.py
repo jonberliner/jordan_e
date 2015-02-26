@@ -1,17 +1,19 @@
 from numpy import sum, concatenate, repeat, linspace, abs
 from numpy.random import RandomState
 
-def rotationExperiment(x, rotmag, nPerXOpt, maxrotmag=None, base_xOpt=None,\
-    edgebuf=None, rngseed=None, blockTypes=None, agTypes=None):
-    """def rotationExperiment(x, rotmag, nPerXOpt, maxrotmag=None, base_xOpt=None,
-    edgebuf=None, rngseed=None, blockTypes=None, agTypes=None)
+def rotationExperiment(domainbounds, rotmag, nPerXOpt, maxrotmag=None,\
+                       base_xOpt=None, edgebuf=None, rngseed=None,\
+                       blockTypes=None, agTypes=None):
+    """def rotationExperiment(domainbounds, rotmag, nPerXOpt, maxrotmag=None,
+                              base_xOpt=None, edgebuf=None, rngseed=None,
+                              blockTypes=None, agTypes=None)
 
     inputs:
         (note: - lo* means list of *
                - nparray means numpy array
                - lo* can usually be an nparray of *
                - float is a non-integer real scalar)
-        - x (lofloat): domain
+        - domainbounds (lofloat): min and max of domain
         - rotmag (float or lofloat): rotation magnitude
         - nPerXOpt (loint): n trials for each block
         - maxrotmag (float, default=None): max rotation used in this experiment
@@ -35,6 +37,7 @@ def rotationExperiment(x, rotmag, nPerXOpt, maxrotmag=None, base_xOpt=None,\
         - xOptQueue (nparray): optimal location in the domain for each trial"""
 
     nBlock = len(nPerXOpt)
+    mindomain, maxdomain = domainbounds
     # ambuiguous what rotation or counterrotation mean when multiple rots
     if type(rotmag) is list: assert not blockTypes
 
@@ -50,13 +53,15 @@ def rotationExperiment(x, rotmag, nPerXOpt, maxrotmag=None, base_xOpt=None,\
         good = False
         while not good:
             base_xOpt = rng.rand()
-            if base_xOpt - maxrotmag > min(x) + edgebuf:
-                if base_xOpt + maxrotmag < max(x) - edgebuf:
+            if base_xOpt - maxrotmag > mindomain + edgebuf:
+                if base_xOpt + maxrotmag < maxdomain - edgebuf:
                     good = True
 
     # default rotation for all blocks (so you can pass vector of custom rots)
     if not blockTypes:
         blockTypes = ['rotation' for _ in xrange(nBlock)]
+
+    xOpts = []
     # get xOpt for each block relative to base_xOpt
     for bt in blockTypes:
         basenames = ['baseline', 'base', 'b']
@@ -76,7 +81,7 @@ def rotationExperiment(x, rotmag, nPerXOpt, maxrotmag=None, base_xOpt=None,\
         agTypes = ['abrupt' for _ in xrange(nBlock)]
 
     assert len(blockTypes) == len(xOpts) == len(nPerXOpt) == len(agTypes)
-    xOptQueue = make_abrupt_xOptQueue(xOpts, nPerXOpt, agTypes)
+    xOptQueue = make_mixed_xOptQueue(xOpts, nPerXOpt, agTypes)
     return {'xOptQueue': xOptQueue}
 
 

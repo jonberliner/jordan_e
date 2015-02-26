@@ -15,34 +15,14 @@ var rotationGame = function(){
     //////// STYLE SHEETS FOR THE GAME
     var STYLE = [];
     STYLE.groundLine = [];
-    STYLE.hidFcn = [];
-    STYLE.samArray = [];
-    STYLE.drillArray = [];
     STYLE.ground = [];
     STYLE.sky = [];
     STYLE.groundLine_glow = [];
-    STYLE.ulButton_text = [];
-    STYLE.score_text = [];
-    STYLE.roundSummary_text = [];
     STYLE.scalar_obs = [];
 
     STYLE.groundLine.STROKECOLOR = '#D9BAAB';
     STYLE.groundLine.FILLCOLOR = null;
     STYLE.groundLine.STROKESIZE = 10;
-
-    STYLE.hidFcn.FILLCOLOR = null;
-    STYLE.hidFcn.STROKECOLOR = 'black';
-    STYLE.hidFcn.STROKESIZE = 3;
-
-    STYLE.samArray.STROKECOLOR = 'white';
-    STYLE.samArray.FILLCOLOR = null;
-    STYLE.samArray.STROKESIZE = 3;
-    STYLE.samArray.CIRCRADIUS = 8;
-
-    STYLE.drillArray.STROKECOLOR = 'red';
-    STYLE.drillArray.FILLCOLOR = null;
-    STYLE.drillArray.STROKESIZE = 4;
-    STYLE.drillArray.CIRCRADIUS = 12;
 
     STYLE.ground.STROKESIZE = 5;
     STYLE.ground.STROKECOLOR = '#A0522D';
@@ -55,18 +35,8 @@ var rotationGame = function(){
     STYLE.groundLine_glow.STROKECOLOR = '#EACDDC';
     STYLE.groundLine_glow.STROKESIZE = 15;
 
-    STYLE.ulButton_text.TEXTSTYLE = '1.5em Helvetica';
-    STYLE.ulButton_text.COLOR = 'black';
-
-    STYLE.score_text.TEXTSTYLE = '2em Helvetica';
-    STYLE.score_text.COLOR = 'black';
-
     STYLE.scalar_obs.TEXTSTYLE = '2em Helvetica';
     STYLE.scalar_obs.COLOR = 'white';
-
-    STYLE.roundSummary_text.TEXTSTYLE = '1.5em Helvetica';
-    STYLE.roundSummary_text.COLOR = 'white';
-
 
 
     //////// GAME OBJECT GRAPHICS
@@ -102,6 +72,7 @@ var rotationGame = function(){
                         lt(W, GROUNDLINEY);
     groundLine.visible = true;
 
+
     //////// GAME OBJECT ACTIONS
     // groundLine Actions
     groundLine.addEventListener('mouseover', function(){
@@ -116,61 +87,11 @@ var rotationGame = function(){
 
     groundLine.addEventListener('click', function(){
         pxDrill = stage.mouseX;
-        nextTrial(pxDrill);
+        nextTrial(itrial, pxDrill);
     });
 
 
-    function nlast(elt, currtrial, n) {
-        // says yes if this elt's trial was one of the n last trials
-        return currtrial - elt.itrial < n;
-    }
 
-
-    function make_vis_obs_array(drill_history, critfcn) {
-        // takes drill_history, filters by crit, returns array of ScalarObs
-        var currtrial = drill_history[drill_history.length-1].itrial
-        var to_show = drill_history.filter(critfcn);  // filter to only shown
-        // make obs for all valid sams in drill_history
-        var obs_array = drill_history.map(
-            function(elt){return ScoreObs(elt.x, elt.y)}
-        );
-        return obs_array;
-    }
-
-
-    function ScalarObs(x, y, score){
-        // score to be placed at drill location
-        var obs = new createjs.Text('',
-                                    STYLE.scalar_obs.TEXTSTYLE,
-                                    STYLE.scalar_obs.COLOR);
-        obs.x = x;
-        obs.y = GROUNDLINEY;
-        obs.text = y.toString();
-        obs.visible = true;
-        return obs;
-    }
-
-
-    function stageArray(shapeArray){
-        shapeArray.map(function(elt){
-            stage.addChild(shapeArray[i]);
-            shapeArray[i].visible = true;
-        });
-        stage.update();
-    }
-
-
-    function unstageArray(shapeArray){
-        shapeArray.map(function(elt){
-            shapeArray[i].visible = false;
-            stage.removeChild(shapeArray[i]);
-        });
-    }
-
-
-    function errorToPoints(error) {
-        return Math.round((1 - abs(XRANGE - error)) * 100);
-    }
 
 
 
@@ -181,39 +102,34 @@ var rotationGame = function(){
     PXMIN = 0.;
     PXMAX = W;
     PXRANGE = PXMAX - PXMIN;
-    var X, nX, NTRIAL
-    var drill, xDrill, pxDrill, yDrill;
+    var NTRIAL
+    var drill_history, xDrill, pxDrill, yDrill;
     var obs_array;
-    var expScore, trialScore;
+    var signederror
+    var expScore, trialScore, INITSCORE;
     var itrial;
-    var OPTQUEUE, xOpt;
+    var XOPTQUEUE, xOpt;
     var RNGSEED;
+    var NLASTTOSHOW;
 
     customRoute('init_experiment',  // call init_experiment in custom.py...
                 {'condition': condition,  // w params condition adn counter...
                  'counterbalance': counterbalance},
                  function(resp){  // once to get back resp from custom.py...
                     RNGSEED = resp['rngseed'];
-                    itrial = resp['itrial'];
+                    itrial = resp['inititrial'];
                     INITSCORE = resp['initscore'];
-                    X = resp['x'];
-                    XMIN = min(X);
-                    XMAX = max(X);
+                    XMIN = resp['mindomain'];
+                    XMAX = resp['maxdomain'];
                     XRANGE = XMAX - XMIN;
-                    OPTQUEUE = resp['optQueue'];  // which location gets 100% points?
-                    optX = OPTQUEUE[itrial];
-                    NTRIAL = OPTQUEUE.length;
-                    nX = X.length;
-                    XMIN = min(X);
-                    XMAX = max(X);
-                    XRANGE = XMAX - XMIN;
-                    pX = math2pixX(X);
+                    XOPTQUEUE = resp['xOptQueue'];  // which location gets 100% points?
+                    xOpt = XOPTQUEUE[itrial];
+                    NTRIAL = XOPTQUEUE.length;
 
                     expScore = INITSCORE;
-                    // score_text.text = monify(expScore);
-                    trialScore = NaN;
 
                     obs_array = [];
+                    drill_history = [];
 
                     // add all objects to the stage
                     stage.addChild(ground);
@@ -229,10 +145,10 @@ var rotationGame = function(){
             // if have more trials to go...
             console.log('trial '+itrial.toString()+' saved successfully.');
             if (itrial < NTRIAL){
-                optX = OPTQUEUE[itrial];  // get target
-                xDrill = pix2mathX(pxDrill);  // convert to numeric space
+                xOpt = XOPTQUEUE[itrial];  // get target
+                xDrill = pix2mathX([pxDrill])[0];  // convert to numeric space
                 signederror = xDrill - xOpt;
-                yDrill = errorToPoints(abs(signederror)); // get the reward
+                yDrill = errorToPoints(Math.abs(signederror)); // get the reward
                 expScore += yDrill;
                 drill_history.push({'x': xDrill,
                                     'y': yDrill,
@@ -264,20 +180,57 @@ var rotationGame = function(){
     } // end nextTrial
 
 
+//// HELPER FUNCTIONS
+    function nlast(elt, currtrial, n) {
+        // says yes if this elt's trial was one of the n last trials
+        return currtrial - elt.itrial < n;
+    }
+
+
+    function make_vis_obs_array(drill_history, critfcn) {
+        // takes drill_history, filters by crit, returns array of ScalarObs
+        var currtrial = drill_history[drill_history.length-1].itrial
+        var to_show = drill_history.filter(critfcn);  // filter to only shown
+        // make obs for all valid sams in drill_history
+        var obs_array = drill_history.map(
+            function(elt){return ScalarObs(elt.x, elt.y)}
+        );
+        return obs_array;
+    }
+
+
+    function ScalarObs(x, y, score){
+        // score to be placed at drill location
+        var obs = new createjs.Text('',
+                                    STYLE.scalar_obs.TEXTSTYLE,
+                                    STYLE.scalar_obs.COLOR);
+        obs.x = x;
+        obs.y = GROUNDLINEY;
+        obs.text = y.toString();
+        obs.visible = true;
+        return obs;
+    }
+
+
     function stageArray(shapeArray){
-        for (var i=0; i<shapeArray.length; i++){
-            stage.addChild(shapeArray[i]);
-            shapeArray[i].visible = true;
-        }
+        shapeArray.map(function(elt){
+            stage.addChild(elt);
+            elt.visible = true;
+        });
         stage.update();
     }
 
 
     function unstageArray(shapeArray){
-        for (var i=0; i<shapeArray.length; i++){
-            shapeArray[i].visible = false;
-            stage.removeChild(shapeArray[i]);
-        }
+        shapeArray.map(function(elt){
+            elt.visible = false;
+            stage.removeChild(elt);
+        });
+    }
+
+
+    function errorToPoints(error) {
+        return Math.round((1 - Math.abs(XRANGE - error)) * 100);
     }
 
 
@@ -286,14 +239,13 @@ var rotationGame = function(){
     }
 
 
-    //////// HELPER FUNCTIONS
-    function math2pixX(A){
-        var a = A.map(function(elt){return elt-XMIN})
-        a = a.map(function(elt){return elt/XRANGE}) // now [0,1]
-        a = a.map(function(elt){return elt*PXRANGE})
-        a = a.map(function(elt){return elt+PXMIN})
-        return a;
-    }
+    // function math2pixX(A){
+    //     var a = A.map(function(elt){return elt-XMIN})
+    //     a = a.map(function(elt){return elt/XRANGE}) // now [0,1]
+    //     a = a.map(function(elt){return elt*PXRANGE})
+    //     a = a.map(function(elt){return elt+PXMIN})
+    //     return a;
+    // }
 
 
     function pix2mathX(A){
@@ -329,17 +281,15 @@ var rotationGame = function(){
     function jsb_recordTurkData(callback){
         psiTurk.recordTrialData({
             'trial': itrial,
+            'mindomain': XMIN,
+            'maxdomain': XMAX,
             'expScore': expScore,
-            'trialScore': trialScore,
             'xOpt': xOpt,
             'xDrill': xDrill,
             'signederror': signederror,
             'yDrill': yDrill,
             'pxDrill': pxDrill,
             'RNGSEED': RNGSEED,
-            'LENSCALE': LENSCALE,
-            'SIGVAR': SIGVAR,
-            'NOISEVAR2': NOISEVAR2,
             'condition': condition,
             'counterbalance': counterbalance
         });

@@ -14,7 +14,8 @@ from psiturk.models import Participant
 from json import dumps, loads
 
 # for basic experiment setup
-from numpy import linspace, array
+from numpy import linspace
+from numpy import array as npa
 
 # load the configuration options
 config = PsiturkConfig()
@@ -39,7 +40,7 @@ def init_experiment():
     ## FREE VARS
     # made with numpy.random.randint(4294967295, size=100)  # (number is max allowed on amazon linux)
     RNGSEEDPOOL =\
-        array([3298170796, 2836114699,  599817272, 4120600023, 2084303722,
+        npa([3298170796, 2836114699,  599817272, 4120600023, 2084303722,
                3397274674,  422915931, 1268543322, 4176768264, 3919821713,
                1110305631, 1751019283, 2477245129,  658114151, 3344905605,
                1041401026,  232715019,  326334289, 2686111309, 2708714477,
@@ -60,13 +61,14 @@ def init_experiment():
                1487903826, 3534352433, 2793970570, 3696596236, 3057302268,
                2924494158, 1308408238, 2181850436, 2485685726, 1958873721])
 
-    nX = 1028
-    X = linspace(-1., 1., nX)
-    ROTMAGPOOL = [0.25, 0.5, 0.75, 1.]  # proxy for 15, 30, 45, 60 degree rots
+    MINDOMAIN = -1.
+    MAXDOMAIN = 1.
+
+    ROTMAGPOOL = npa([15., 30., 45., 60.])/90.  # proxy for 15, 30, 45, 60 degree rots
 
     ROTMAG = ROTMAGPOOL[CONDITION]
     NPERXOPT = [90, 40, 40, 90]  # how many trials per block?
-    MAXROTMAG = 1.  # maximum rotation considered for these experiments
+    MAXROTMAG = 60./90.  # maximum rotation considered for these experiments
     BASE_XOPT = None  # if none, will be random
     EDGEBUF = 0.05  # random base_xOpt will be between [-1+EDGEBUF, 1-EDGEBUF]
     RNGSEED = RNGSEEDPOOL[COUNTERBALANCE]
@@ -76,7 +78,7 @@ def init_experiment():
     # (can be explicitely written as ['a', 'a', 'a', 'a'])
     AGTYPES = None
 
-    experParams = {'x': X,
+    experParams = {'domainbounds': [MINDOMAIN, MAXDOMAIN],
                    'rotmag': ROTMAG,
                    'nPerXOpt': NPERXOPT,
                    'maxrotmag': MAXROTMAG,
@@ -87,7 +89,7 @@ def init_experiment():
                    'agTypes': AGTYPES}
 
     # make experiment params for this subject!
-    print 'beginning to make subParams'
+    # (** means unpack and pass in params in a dict)
     subParams = rotationExperiment(**experParams)
     # bundle response to send
     resp = {}
@@ -103,9 +105,11 @@ def init_experiment():
         except:
             resp[f] = experParams[f]
 
-    resp['trial'] = 0  # start at trial 0
+    resp['inititrial'] = 0  # start at trial 0
     resp['rotmag'] = ROTMAG
     resp['rngseed'] = RNGSEED
     resp['initscore'] = 0  # start w 0 points
+    resp['mindomain'] = MINDOMAIN
+    resp['maxdomain'] = MAXDOMAIN
 
     return jsonify(**resp)
