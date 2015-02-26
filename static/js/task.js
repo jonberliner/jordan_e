@@ -14,13 +14,13 @@ var mycounterbalance = counterbalance;  // they tell you which condition you hav
 var INS_FOLDER = 'instructions';
 
 var pages = [ // list of all html pages to be used through interaction with partiipant
-    INS_FOLDER + "/instr_1.html",
-    INS_FOLDER + "/instr_2.html",
-    INS_FOLDER + "/instr_3.html",
-    INS_FOLDER + "/instr_4.html",
-    INS_FOLDER + "/instr_5.html",
-    INS_FOLDER + "/instr_6.html",
-    INS_FOLDER + "/instr_7.html",
+    // INS_FOLDER + "/instr_1.html",
+    // INS_FOLDER + "/instr_2.html",
+    // INS_FOLDER + "/instr_3.html",
+    // INS_FOLDER + "/instr_4.html",
+    // INS_FOLDER + "/instr_5.html",
+    // INS_FOLDER + "/instr_6.html",
+    // INS_FOLDER + "/instr_7.html",
     INS_FOLDER + "/instr_ready.html",
     "stage.html",
     "debriefing.html"
@@ -28,13 +28,13 @@ var pages = [ // list of all html pages to be used through interaction with part
 
 psiTurk.preloadPages(pages);
 var instructionPages = [ // indicate which are specifically instructions
-    INS_FOLDER + "/instr_1.html",
-    INS_FOLDER + "/instr_2.html",
-    INS_FOLDER + "/instr_3.html",
-    INS_FOLDER + "/instr_4.html",
-    INS_FOLDER + "/instr_5.html",
-    INS_FOLDER + "/instr_6.html",
-    INS_FOLDER + "/instr_7.html",
+    // INS_FOLDER + "/instr_1.html",
+    // INS_FOLDER + "/instr_2.html",
+    // INS_FOLDER + "/instr_3.html",
+    // INS_FOLDER + "/instr_4.html",
+    // INS_FOLDER + "/instr_5.html",
+    // INS_FOLDER + "/instr_6.html",
+    // INS_FOLDER + "/instr_7.html",
     INS_FOLDER + "/instr_ready.html",
 ];
 

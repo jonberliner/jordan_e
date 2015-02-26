@@ -3,7 +3,7 @@ from numpy.random import RandomState
 
 def rotationExperiment(x, rotmag, nPerXOpt, maxrotmag=None, base_xOpt=None,\
     edgebuf=None, rngseed=None, blockTypes=None, agTypes=None):
-"""def rotationExperiment(x, rotmag, nPerXOpt, maxrotmag=None, base_xOpt=None,\
+    """def rotationExperiment(x, rotmag, nPerXOpt, maxrotmag=None, base_xOpt=None,
     edgebuf=None, rngseed=None, blockTypes=None, agTypes=None)
 
     inputs:
@@ -32,8 +32,7 @@ def rotationExperiment(x, rotmag, nPerXOpt, maxrotmag=None, base_xOpt=None,\
             always be 'abrupt' (because nothing to gradually transition to)
 
     outputs:
-        - xOptQueue (nparray): optimal location in the domain for each trial
-"""
+        - xOptQueue (nparray): optimal location in the domain for each trial"""
 
     nBlock = len(nPerXOpt)
     # ambuiguous what rotation or counterrotation mean when multiple rots

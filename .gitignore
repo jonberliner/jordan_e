@@ -1,5 +1,5 @@
 *.db
-*.pyx
+*.pyc
 *.c
 *.so
 .psiturk_history

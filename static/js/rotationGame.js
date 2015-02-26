@@ -1,5 +1,5 @@
 /********************
-*    DRILLING GAME             *
+*    ROTATION GAME             *
 ********************/
 var rotationGame = function(){
     "use strict";
@@ -24,6 +24,7 @@ var rotationGame = function(){
     STYLE.ulButton_text = [];
     STYLE.score_text = [];
     STYLE.roundSummary_text = [];
+    STYLE.scalar_obs = [];
 
     STYLE.groundLine.STROKECOLOR = '#D9BAAB';
     STYLE.groundLine.FILLCOLOR = null;
@@ -59,6 +60,9 @@ var rotationGame = function(){
 
     STYLE.score_text.TEXTSTYLE = '2em Helvetica';
     STYLE.score_text.COLOR = 'black';
+
+    STYLE.scalar_obs.TEXTSTYLE = '2em Helvetica';
+    STYLE.scalar_obs.COLOR = 'white';
 
     STYLE.roundSummary_text.TEXTSTYLE = '1.5em Helvetica';
     STYLE.roundSummary_text.COLOR = 'white';
@@ -137,7 +141,7 @@ var rotationGame = function(){
     function ScalarObs(x, y, score){
         // score to be placed at drill location
         var obs = new createjs.Text('',
-                                    STYLE.scalar_obs.TEXTSTYLE),
+                                    STYLE.scalar_obs.TEXTSTYLE,
                                     STYLE.scalar_obs.COLOR);
         obs.x = x;
         obs.y = GROUNDLINEY;
@@ -157,10 +161,10 @@ var rotationGame = function(){
 
 
     function unstageArray(shapeArray){
-        shapeArray.map(function(elt{
+        shapeArray.map(function(elt){
             shapeArray[i].visible = false;
             stage.removeChild(shapeArray[i]);
-        }));
+        });
     }
 
 
@@ -216,6 +220,7 @@ var rotationGame = function(){
                     stage.addChild(sky);
                     stage.addChild(groundLine_glow);
                     stage.addChild(groundLine);
+                    stage.update();
                 });
 
 
@@ -237,7 +242,7 @@ var rotationGame = function(){
                 // show scores from last NLASTTOSHOW trials
                 NLASTTOSHOW = 2;
                 obs_array = make_vis_obs_array(drill_history,
-                                function(elt){return nlast(elt, itrial, NLASTTOSHOW}));
+                    function(elt){return nlast(elt, itrial, NLASTTOSHOW)});
                 stageArray(obs_array);
             }
             else {
