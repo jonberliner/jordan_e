@@ -211,12 +211,13 @@ var rotationGame = function(){
         obs.x = x;
         obs.y = y;
         obs.text = val.toString();
-        obs.visible = BUTTS;
+        obs.visible = true;
         return obs;
     }
 
 
     function stageArray(shapeArray){
+        // add all elements in shapeArray to the canvas
         shapeArray.map(function(elt){
             stage.addChild(elt);
             elt.visible = true;
@@ -226,6 +227,7 @@ var rotationGame = function(){
 
 
     function unstageArray(shapeArray){
+        // remove all elements in shapeArray from the canvas
         shapeArray.map(function(elt){
             elt.visible = false;
             stage.removeChild(elt);
