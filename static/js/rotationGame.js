@@ -211,7 +211,7 @@ var rotationGame = function(){
         obs.x = x;
         obs.y = y;
         obs.text = val.toString();
-        obs.visible = true;
+        obs.visible = BUTTS;
         return obs;
     }
 
