@@ -68,6 +68,7 @@ def init_experiment():
 
     ROTMAG = ROTMAGPOOL[CONDITION]
     NPERXOPT = [90, 40, 40, 90]  # how many trials per block?
+    NTRIAL = sum(NPERXOPT)  # total number trials in experiment
     MAXROTMAG = 60./90.  # maximum rotation considered for these experiments
     BASE_XOPT = None  # if none, will be random
     EDGEBUF = 0.05  # random base_xOpt will be between [-1+EDGEBUF, 1-EDGEBUF]
@@ -78,15 +79,35 @@ def init_experiment():
     # (can be explicitely written as ['a', 'a', 'a', 'a'])
     AGTYPES = None
 
-    experParams = {'domainbounds': [MINDOMAIN, MAXDOMAIN],
+    # params for make_clickArcQueue, which determines startpoint and heading ang
+    NTARGET = 4
+    MINDEGARCPOOL = linspace(0., 360., NTARGET+1)[:-1]  # ccw-most part of choice arc
+    MAXDEGARCPOOL = MINDEGARCPOOL + 90.;   # cw-most part of choice arc
+    assert NTRIAL % NTARGET == 0
+    NEPICYCLE = NTRIAL / NTARGET  # how many epicycles through each target loc
+    RADWRTXARC = 0.3  # percent of window width that determines dist(start, arc)
+    XORIGIN = 0.5  # x startpoint as percentage of window width
+    YORIGIN = 0.5  # y startpoint as percentage of window height
+
+
+    experParams = {# needed for make_mixed_xOptQueue
+                   'domainbounds': [MINDOMAIN, MAXDOMAIN],
                    'rotmag': ROTMAG,
                    'nPerXOpt': NPERXOPT,
+                   'radwrtxArc': RADWRTXARC,
                    'maxrotmag': MAXROTMAG,
                    'base_xOpt': BASE_XOPT,
                    'edgebuf': EDGEBUF,
                    'rngseed': RNGSEED,
                    'blockTypes': BLOCKTYPES,
-                   'agTypes': AGTYPES}
+                   'agTypes': AGTYPES,
+                   # needed for make_clickArcQueue
+                   'mindegArcPool': MINDEGARCPOOL,
+                   'maxdegArcPool': MAXDEGARCPOOL,
+                   'nEpicycle': NEPICYCLE,
+                   'radwrtxArc': RADWRTXARC,
+                   'xOrigin': XORIGIN,
+                   'yOrigin': YORIGIN}
 
     # make experiment params for this subject!
     # (** means unpack and pass in params in a dict)

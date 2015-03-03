@@ -1,12 +1,18 @@
-from numpy import sum, concatenate, repeat, linspace, abs
-from numpy.random import RandomState
+from numpy import sum, concatenate, repeat, linspace, abs, ndarray, arange
+from numpy.random import RandomState, permutation
+from numpy import array as npa
 
-def rotationExperiment(domainbounds, rotmag, nPerXOpt, maxrotmag=None,\
-                       base_xOpt=None, edgebuf=None, rngseed=None,\
-                       blockTypes=None, agTypes=None):
-    """def rotationExperiment(domainbounds, rotmag, nPerXOpt, maxrotmag=None,
-                              base_xOpt=None, edgebuf=None, rngseed=None,
-                              blockTypes=None, agTypes=None)
+def rotationExperiment(domainbounds, rotmag, nPerXOpt,\
+                       mindegArcPool, maxdegArcPool, nEpicycle, radwrtxArc,\
+                       maxrotmag=None, base_xOpt=None, edgebuf=None,\
+                       rngseed=None, blockTypes=None, agTypes=None,\
+                       xOrigin=0.5, yOrigin=0.5):
+    """FIXME: need to include the params used for making clickArcQueue:
+    mindegArcPool, maxdegArcPool, nEpicycle, radwrtx, xOrigin, and yOrigin.
+
+    def rotationExperiment(domainbounds, rotmag, nPerXOpt,
+                           maxrotmag=None, base_xOpt=None, edgebuf=None,
+                           rngseed=None, blockTypes=None, agTypes=None)
 
     inputs:
         (note: - lo* means list of *
@@ -82,10 +88,21 @@ def rotationExperiment(domainbounds, rotmag, nPerXOpt, maxrotmag=None,\
 
     assert len(blockTypes) == len(xOpts) == len(nPerXOpt) == len(agTypes)
     xOptQueue = make_mixed_xOptQueue(xOpts, nPerXOpt, agTypes)
-    return {'xOptQueue': xOptQueue}
+
+    # get the arcline for the experiment
+    clickArcQueue = make_clickArcQueue(mindegArcPool, maxdegArcPool,\
+                                       nEpicycle, radwrtxArc,\
+                                       xOrigin, yOrigin)
+
+    # package in dict and ship off
+    experParams = {}
+    experParams['xOptQueue'] = xOptQueue
+    for ff in clickArcQueue:  # extract params in clickArcQueue
+        experParams[ff] = clickArcQueue[ff]
+
+    return experParams
 
 
-# BEGIN DEFS
 def make_mixed_xOptQueue(xOpts, nPerXOpt, agBlockTypes):
     """def make_mixed_xOptQueue(xOpts, nPerXOpt, agBlockTypes)
     input:
@@ -147,3 +164,61 @@ def make_gradual_xOptQueue(xOpts, nPerXOpt):
     miniqueues += repeat(xOpts[-1], nPerXOpt[-1])
     xOptQueue = concatenate(miniqueues)
     return xOptQueue
+
+
+def repeatIfScalar(thing, n):
+    """def repeatIfScalar(thing, n)
+    input:
+        thing (anything): thing checking if scalar
+        n (int): times to repeat if scalar
+
+    output:
+        thing (list): thing repeated n times is scalar, else thing"""
+    if not hasattr(thing, "__len__"):  # if not list or nparray
+        thing = repeat(thing, n)
+    return thing
+
+
+def make_clickArcQueue(mindegArcPool, maxdegArcPool, nEpicycle, radwrtxArc,\
+                       xOrigin=0.5, yOrigin=0.5):
+    """make_clickArcQueue(mindegArcPool, maxdegArcPool, nEpicycle, radwrtxArc,\
+                          xStart=0.5, yStart=0.5)
+    input:
+        - mindegArcPool (lofloat): degrees of cw-most edge of choice arc
+        - mindegArcPool (lofloat): degrees of ccw-most edge of choice arc
+            must be same size as mindegArcPool
+        - nEpicycle (loint): number of rand perms of mindegArcPool
+        - radwrtxArc (float in [0., 1.]): radius, in terms of percentage of
+            width (x) of screen
+        - xOrigin (float or lofloat in [0., 1.], default 0.5): arc origin as
+            percent of screen width
+        - yOrigin (float or lofloat in [0., 1.], default 0.5): arc origin as
+            percent of screen height
+    output:
+        - out w fields [mindegqueue, maxdegqueue, radwrtxqueue,
+                        xoriginqueue, yoriginqueue],
+            which specify the startpoint and choice arc for every trial of
+            the experiment
+    """
+    iInPool = len(mindegArcPool)
+    assert len(maxdegArcPool) == iInPool
+    radwrtxArcPool = repeatIfScalar(radwrtxArc, iInPool)
+    xOriginPool = repeatIfScalar(xOrigin, iInPool)
+    yOriginPool = repeatIfScalar(yOrigin, iInPool)
+    # ensure lengths all kosher
+    assert len(radwrtxArcPool) == iInPool
+    assert len(xOriginPool) == iInPool
+    assert len(yOriginPool) == iInPool
+
+    iDegPool = arange(iInPool)
+    iDegPoolQueue = concatenate([permutation(iDegPool)
+                                 for _ in xrange(nEpicycle)])
+    out = {}
+    out['mindegarcqueue'] = npa([mindegArcPool[ii] for ii in iDegPoolQueue])
+    out['maxdegarcqueue'] = npa([maxdegArcPool[ii] for ii in iDegPoolQueue])
+    out['radwrtxarcqueue'] = npa([radwrtxArcPool[ii] for ii in iDegPoolQueue])
+    out['xoriginqueue'] = npa([xOriginPool[ii] for ii in iDegPoolQueue])
+    out['yoriginqueue'] = npa([yOriginPool[ii] for ii in iDegPoolQueue])
+
+    return out
+

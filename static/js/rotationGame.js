@@ -68,13 +68,6 @@ var rotationGame = function(){
 
     // groundLine Graphics
     var groundLine = new createjs.Shape();
-    groundLine.graphics.Arc(XSTARTPOINT, YSTARTPOINT, RADARCLINE,
-                            MINARCDEG, MAXARCDEG, true).
-                        s(STYLE.groundLine.STROKECOLOR).
-                        ss(STYLE.groundLine.STROKESIZE, 0, 0).
-                        mt(0, GROUNDLINEY). // GROUNDLINE HEIGHT
-                        lt(W, GROUNDLINEY);
-    groundLine.visible = true;
 
 
     //////// GAME OBJECT ACTIONS
@@ -91,11 +84,38 @@ var rotationGame = function(){
 
     groundLine.addEventListener('click', function(){
         pxDrill = stage.mouseX;
-        nextTrial(pxDrill);
+        pyDrill = stage.mouseX;
+        nextTrial(pxDrill, pyDrill, pxStart, pyStart);
     });
 
 
+    function pixToArclineDegrees(pxMouse, pyMouse, pxOrigin, pyOrigin){
+        // center at origin
+        pxMouse -= pxOrigin;
+        pyMouse -= pyOrigin;
+        var polarMouse = cartesianToPolar(pxMouse, pyMouse);
+        var degMouse = radToDeg(polarMouse.theta);
+        return {'polarMouse': polarMouse,
+                'degMouse': degMouse};
+    }
 
+
+    function cartesianToPolar(x, y){
+        var r = Math.sqrt(Math.pow(x, 2.) + Math.pow(y, 2.));
+        var theta = Math.atan(y/x);
+        return {'r': r,
+                'theta': theta};
+    }
+
+
+    function radToDeg(theta){
+        return theta * (Math.PI/180.);
+    }
+
+
+    function degToRad(deg){
+        return deg * (180./Math.PI);
+    }
 
 
 
@@ -115,6 +135,37 @@ var rotationGame = function(){
     var XOPTQUEUE, xOpt;
     var RNGSEED;
     var NLASTTOSHOW;
+    var XSTARTQUEUE, YSTARTQUEUE, xStart, yStart, pxStart, pyStart;
+    var RADWRTXARCQUEUE, radwrtxArc, pradArc;  // radius from startpoint to choice arc
+    var MINDEGARCQUEUE, MAXDEGARCQUEUE, mindegArc, maxdegArc, minthetaArc, maxthetaArc;
+
+
+    function set_itrialParams(){
+        // get values in abstract space
+        xOpt = XOPTQUEUE[itrial];
+        xStart = XSTARTQUEUE[itrial];
+        yStart = YSTARTQUEUE[itrial];
+        radwrtxArc = RADWRTXARCQUEUE[itrial];
+        mindegArc = MINDEGARCQUEUE[itrial];
+        maxdegArc = MAXDEGARCQUEUE[itrial];
+        // convert what's needed to pixel space
+        pradArc = radwrtxArc * W;
+        pxStart = xStart * W;
+        pyStart = yStart * H;
+        // convert to theta for arcs
+        minthetaArc = degToRad(mindegArc);
+        maxthetaArc = degToRad(maxdegArc);
+    }
+
+
+    function update_groundLine(){
+        groundLine.graphics.s(STYLE.groundLine.STROKECOLOR).
+                            ss(STYLE.groundLine.STROKESIZE, 0, 0).
+                            arc(pxStart, pyStart, pradArc,
+                                minthetaArc, maxthetaArc, true)
+        groundLine.visible = true;
+    }
+
 
     customRoute('init_experiment',  // call init_experiment in custom.py...
                 {'condition': condition,  // w params condition adn counter...
@@ -126,8 +177,16 @@ var rotationGame = function(){
                     XMIN = resp['mindomain'];
                     XMAX = resp['maxdomain'];
                     XRANGE = XMAX - XMIN;
+                    XSTARTQUEUE = resp['xoriginqueue'];
+                    YSTARTQUEUE = resp['yoriginqueue'];
+                    RADWRTXARCQUEUE = resp['radwrtxarcqueue'];
+                    MINDEGARCQUEUE = resp['mindegarcqueue'];
+                    MAXDEGARCQUEUE = resp['maxdegarcqueue'];
                     XOPTQUEUE = resp['xOptQueue'];  // which location gets 100% points?
-                    xOpt = XOPTQUEUE[itrial];
+
+                    set_itrialParams();
+                    update_groundLine();
+
                     NTRIAL = XOPTQUEUE.length;
 
                     expScore = INITSCORE;
@@ -150,7 +209,8 @@ var rotationGame = function(){
         jsb_recordTurkData(function(){
             // if have more trials to go...
             console.log('trial '+itrial.toString()+' saved successfully.');
-            if (itrial < NTRIAL){
+            itrial += 1;  // move to next trial
+            if (itrial < NTRIAL){  // if more trials to go...
                 xOpt = XOPTQUEUE[itrial];  // get target
                 xDrill = pix2mathX([pxDrill])[0];  // convert to numeric space
                 signederror = xDrill - xOpt;
@@ -159,15 +219,19 @@ var rotationGame = function(){
                 drill_history.push({'px': pxDrill,
                                     'y': yDrill,
                                     'itrial': itrial});
-                // update feedback stage
+                // prepare next click arc
+                xstartpoint = XSTARTPOINTQUEUE[itrial];
+                ystartpoint = YSTARTPOINTQUEUE[itrial];
+                radarcline = RADARCLINEQUEUE[itrial];
+                minarcdeg = MINARCDEGQUEUE[itrial];
+                maxarcdeg = MAXARCDEGQUEUE[itrial];
+                // update feedback
                 unstageArray(obs_array);
                 // show scores from last NLASTTOSHOW trials
                 NLASTTOSHOW = 2;
                 obs_array = make_vis_obs_array(drill_history,
                     function(elt){return nlast(elt, itrial, NLASTTOSHOW)});
                 stageArray(obs_array);
-                itrial += 1;
-                console.log(itrial)
             }
             else {
                 // endgame goes here
