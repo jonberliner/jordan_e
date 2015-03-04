@@ -60,11 +60,6 @@ var rotationGame = function(){
 
     // groundLine_glow Graphics
     var groundLine_glow = new createjs.Shape();
-    groundLine_glow.graphics.s(STYLE.groundLine_glow.STROKECOLOR).
-                                ss(STYLE.groundLine_glow.STROKESIZE, 0, 0).
-                                mt(0, GROUNDLINEY). // GROUNDLINE HEIGHT
-                                lt(W, GROUNDLINEY);
-    groundLine_glow.visible = false;
 
     // groundLine Graphics
     var groundLine = new createjs.Shape();
@@ -127,7 +122,7 @@ var rotationGame = function(){
     PXMAX = W;
     PXRANGE = PXMAX - PXMIN;
     var NTRIAL
-    var drill_history, xDrill, pxDrill, yDrill;
+    var drill_history, xDrill, pxDrill, pyDrill, fDrill;
     var obs_array;
     var signederror
     var expScore, trialScore, INITSCORE;
@@ -162,7 +157,14 @@ var rotationGame = function(){
         groundLine.graphics.s(STYLE.groundLine.STROKECOLOR).
                             ss(STYLE.groundLine.STROKESIZE, 0, 0).
                             arc(pxStart, pyStart, pradArc,
-                                minthetaArc, maxthetaArc, true)
+                                minthetaArc, maxthetaArc, true);
+
+        groundLine_glow.graphics.s(STYLE.groundLine_glow.STROKECOLOR).
+                            ss(STYLE.groundLine_glow.STROKESIZE, 0, 0).
+                            arc(pxStart, pyStart, pradArc,
+                                minthetaArc, maxthetaArc, true);
+
+        groundLine_glow.visible = false;
         groundLine.visible = true;
     }
 
@@ -214,17 +216,15 @@ var rotationGame = function(){
                 xOpt = XOPTQUEUE[itrial];  // get target
                 xDrill = pix2mathX([pxDrill])[0];  // convert to numeric space
                 signederror = xDrill - xOpt;
-                yDrill = errorToPoints(Math.abs(signederror)); // get the reward
-                expScore += yDrill;
+                fDrill = errorToPoints(Math.abs(signederror)); // get the reward
+                expScore += fDrill;
                 drill_history.push({'px': pxDrill,
-                                    'y': yDrill,
+                                    'py': pyDrill,
+                                    'f': fDrill,
                                     'itrial': itrial});
                 // prepare next click arc
-                xstartpoint = XSTARTPOINTQUEUE[itrial];
-                ystartpoint = YSTARTPOINTQUEUE[itrial];
-                radarcline = RADARCLINEQUEUE[itrial];
-                minarcdeg = MINARCDEGQUEUE[itrial];
-                maxarcdeg = MAXARCDEGQUEUE[itrial];
+                set_itrialParams();
+                update_groundLine();
                 // update feedback
                 unstageArray(obs_array);
                 // show scores from last NLASTTOSHOW trials
@@ -265,7 +265,7 @@ var rotationGame = function(){
         var to_show = drill_history.filter(critfcn);  // filter to only shown
         // make obs for all valid sams in drill_history
         var obs_array = to_show.map(
-            function(elt){return ScalarObs(elt.px, GROUNDLINEY, elt.y)}
+            function(elt){return ScalarObs(elt.px, elt.py, elt.f)}
         );
         return obs_array;
     }
@@ -361,7 +361,7 @@ var rotationGame = function(){
             'xOpt': xOpt,
             'xDrill': xDrill,
             'signederror': signederror,
-            'yDrill': yDrill,
+            'fDrill': fDrill,
             'pxDrill': pxDrill,
             'RNGSEED': RNGSEED,
             'condition': condition,
