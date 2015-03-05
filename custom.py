@@ -61,17 +61,17 @@ def init_experiment():
                1487903826, 3534352433, 2793970570, 3696596236, 3057302268,
                2924494158, 1308408238, 2181850436, 2485685726, 1958873721])
 
-    MINDOMAIN = -1.
-    MAXDOMAIN = 1.
+    MINDOMAIN = 0.
+    MAXDOMAIN = 180.
 
-    ROTMAGPOOL = npa([15., 30., 45., 60.])/90.  # proxy for 15, 30, 45, 60 degree rots
+    ROTMAGPOOL = npa([15., 30., 45., 60.])  # proxy for 15, 30, 45, 60 degree rots
 
     ROTMAG = ROTMAGPOOL[CONDITION]
     NPERXOPT = [90, 40, 40, 90]  # how many trials per block?
     NTRIAL = sum(NPERXOPT)  # total number trials in experiment
-    MAXROTMAG = 60./90.  # maximum rotation considered for these experiments
-    BASE_XOPT = None  # if none, will be random
-    EDGEBUF = 0.05  # random base_xOpt will be between [-1+EDGEBUF, 1-EDGEBUF]
+    MAXROTMAG = 60.  # maximum rotation considered for these experiments
+    DEGWHEREROTISZERO = None  # if none, will be random
+    EDGEBUF = 10.  # random degWhereRotIsZero will be between [MINDOMAIN+EDGEBUF, MAXDOMAIN-EDGEBUF]
     RNGSEED = RNGSEEDPOOL[COUNTERBALANCE]
     # 'b' for base, 'r' for rot, 'c' for counterrot
     BLOCKTYPES = ['b', 'r', 'c', 'b']
@@ -82,7 +82,7 @@ def init_experiment():
     # params for make_clickArcQueue, which determines startpoint and heading ang
     NTARGET = 4
     MINDEGARCPOOL = linspace(0., 360., NTARGET+1)[:-1]  # ccw-most part of choice arc
-    MAXDEGARCPOOL = MINDEGARCPOOL + 90.;   # cw-most part of choice arc
+    MAXDEGARCPOOL = MINDEGARCPOOL + 180.;   # cw-most part of choice arc
     assert NTRIAL % NTARGET == 0
     NEPICYCLE = NTRIAL / NTARGET  # how many epicycles through each target loc
     RADWRTXARC = 0.3  # percent of window width that determines dist(start, arc)
@@ -96,7 +96,7 @@ def init_experiment():
                    'nPerXOpt': NPERXOPT,
                    'radwrtxArc': RADWRTXARC,
                    'maxrotmag': MAXROTMAG,
-                   'base_xOpt': BASE_XOPT,
+                   'degWhereRotIsZero': DEGWHEREROTISZERO,
                    'edgebuf': EDGEBUF,
                    'rngseed': RNGSEED,
                    'blockTypes': BLOCKTYPES,
@@ -115,10 +115,12 @@ def init_experiment():
     # bundle response to send
     resp = {}
     for f in subParams:
+        fname = f
+        if f == 'xOptQueue': fname = 'degoptqueue'
         try:
-            resp[f] = subParams[f].tolist()
+            resp[fname] = subParams[f].tolist()
         except:
-            resp[f] = subParams[f]
+            resp[fname] = subParams[f]
 
     for f in experParams:
         try:  # convet numpy array to list if possible

@@ -3,6 +3,9 @@
 ********************/
 var rotationGame = function(){
     "use strict";
+
+    // use instead of % b.c. javascript can't do negative mod
+    function mod(a, b){return ((a%b)+b)%b;}
     // var njs = numeric;
     var canvas = document.getElementById('easel');
     var W = canvas.width;
@@ -79,70 +82,50 @@ var rotationGame = function(){
 
     groundLine.addEventListener('click', function(){
         pxDrill = stage.mouseX;
-        pyDrill = stage.mouseX;
-        nextTrial(pxDrill, pyDrill, pxStart, pyStart);
+        pyDrill = stage.mouseY;
+        nextTrial(pxDrill, pyDrill);
     });
 
 
-    function pixToArclineDegrees(pxMouse, pyMouse, pxOrigin, pyOrigin){
-        // center at origin
-        pxMouse -= pxOrigin;
-        pyMouse -= pyOrigin;
-        var polarMouse = cartesianToPolar(pxMouse, pyMouse);
-        var degMouse = radToDeg(polarMouse.theta);
-        return {'polarMouse': polarMouse,
-                'degMouse': degMouse};
-    }
-
-
-    function cartesianToPolar(x, y){
-        var r = Math.sqrt(Math.pow(x, 2.) + Math.pow(y, 2.));
-        var theta = Math.atan(y/x);
-        return {'r': r,
-                'theta': theta};
-    }
-
-
     function radToDeg(theta){
-        return theta * (Math.PI/180.);
+        return mod(theta * (180./Math.PI), 360.);
     }
 
 
     function degToRad(deg){
-        return deg * (180./Math.PI);
+        return mod(deg, 360.) * (Math.PI/180.);
     }
 
 
 
 
     //////// GAME LOGIC
-    var XMIN, XMAX, XRANGE;
-    var PXMIN, PXMAX, PXRANGE;
-    PXMIN = 0.;
-    PXMAX = W;
-    PXRANGE = PXMAX - PXMIN;
+    var DEGMIN, DEGMAX, DEGRANGE;
     var NTRIAL
-    var drill_history, xDrill, pxDrill, pyDrill, fDrill;
+    var drill_history, xDrill, pxDrill, pyDrill, fDrill, degDrill;
     var obs_array;
     var signederror
     var expScore, trialScore, INITSCORE;
     var itrial;
-    var XOPTQUEUE, xOpt;
+    var DEGOPTQUEUE, degOpt;
     var RNGSEED;
     var NLASTTOSHOW;
     var XSTARTQUEUE, YSTARTQUEUE, xStart, yStart, pxStart, pyStart;
     var RADWRTXARCQUEUE, radwrtxArc, pradArc;  // radius from startpoint to choice arc
-    var MINDEGARCQUEUE, MAXDEGARCQUEUE, mindegArc, maxdegArc, minthetaArc, maxthetaArc;
+    var MINDEGARCQUEUE, MAXDEGARCQUEUE, mindegArc, maxdegArc, rangedegArc;
+    var minthetaArc, maxthetaArc;
 
 
     function set_itrialParams(){
         // get values in abstract space
-        xOpt = XOPTQUEUE[itrial];
+        // angle on arc where get max points.  assumes deg(mindegArc) = 0
+        degOpt = DEGOPTQUEUE[itrial];
         xStart = XSTARTQUEUE[itrial];
         yStart = YSTARTQUEUE[itrial];
         radwrtxArc = RADWRTXARCQUEUE[itrial];
-        mindegArc = MINDEGARCQUEUE[itrial];
-        maxdegArc = MAXDEGARCQUEUE[itrial];
+        mindegArc = mod(MINDEGARCQUEUE[itrial], 360.);
+        maxdegArc = mod(MAXDEGARCQUEUE[itrial], 360.);
+        rangedegArc = maxdegArc - mindegArc;
         // convert what's needed to pixel space
         pradArc = radwrtxArc * W;
         pxStart = xStart * W;
@@ -153,16 +136,43 @@ var rotationGame = function(){
     }
 
 
+    function normalize(a, tobounds, frombounds){
+        // takes aa, which lives in interval frombounds, and maps to interval tobounds
+        // default tobounds = [0,1]
+        tobounds = typeof tobounds !== 'undefined' ? tobounds : [0., 1.];
+        // default frombounds are the min and max of a
+        frombounds = typeof frombounds !== 'undefined' ? frombounds : [min(a), max(a)];
+
+        var fromlo = frombounds[0];
+        var fromhi = frombounds[1];
+        var tolo = tobounds[0];
+        var tohi = tobounds[1];
+        var fromrange = fromhi-fromlo;
+        var torange = tohi-tolo;
+
+        a = a.map(function(elt){return elt-fromlo;});
+        a = a.map(function(elt){return elt/fromrange;}); // now in 0, 1
+        a = a.map(function(elt){return elt*torange});
+        a = a.map(function(elt){return elt+tolo});
+
+        return a;
+    }
+
+
     function update_groundLine(){
+        // negatives come from >0 being down screen.  huge PITA
+        groundLine.graphics.clear();
+        groundLine_glow.graphics.clear();
         groundLine.graphics.s(STYLE.groundLine.STROKECOLOR).
                             ss(STYLE.groundLine.STROKESIZE, 0, 0).
                             arc(pxStart, pyStart, pradArc,
-                                minthetaArc, maxthetaArc, true);
+                                -minthetaArc, -maxthetaArc, true);
+
 
         groundLine_glow.graphics.s(STYLE.groundLine_glow.STROKECOLOR).
                             ss(STYLE.groundLine_glow.STROKESIZE, 0, 0).
                             arc(pxStart, pyStart, pradArc,
-                                minthetaArc, maxthetaArc, true);
+                                -minthetaArc, -maxthetaArc, true);
 
         groundLine_glow.visible = false;
         groundLine.visible = true;
@@ -176,20 +186,20 @@ var rotationGame = function(){
                     RNGSEED = resp['rngseed'];
                     itrial = resp['inititrial'];
                     INITSCORE = resp['initscore'];
-                    XMIN = resp['mindomain'];
-                    XMAX = resp['maxdomain'];
-                    XRANGE = XMAX - XMIN;
+                    DEGMIN = resp['mindomain'];
+                    DEGMAX = resp['maxdomain'];
+                    DEGRANGE = DEGMAX - DEGMIN;
                     XSTARTQUEUE = resp['xoriginqueue'];
                     YSTARTQUEUE = resp['yoriginqueue'];
                     RADWRTXARCQUEUE = resp['radwrtxarcqueue'];
                     MINDEGARCQUEUE = resp['mindegarcqueue'];
                     MAXDEGARCQUEUE = resp['maxdegarcqueue'];
-                    XOPTQUEUE = resp['xOptQueue'];  // which location gets 100% points?
+                    DEGOPTQUEUE = resp['degoptqueue'];  // which location gets 100% points?
 
                     set_itrialParams();
                     update_groundLine();
 
-                    NTRIAL = XOPTQUEUE.length;
+                    NTRIAL = DEGOPTQUEUE.length;
 
                     expScore = INITSCORE;
 
@@ -207,15 +217,30 @@ var rotationGame = function(){
                 });
 
 
-    function nextTrial(pxDrill){
+    function pToDegDrill(pxDrill, pyDrill, pxStart, pyStart){
+        // ALWAYS ASSUMES mindegArc IS 0!!!!!
+        // * pyDrill-pyStart is negative b.c. >y is lower in pixel space
+        var theta = Math.atan2(-(pyDrill-pyStart), pxDrill-pxStart);
+        var deg = mod(radToDeg(theta), 360.);
+        return deg;
+    }
+
+
+    function get_signederror(degDrill, degOpt){
+        var ccwerr = degDrill - mod(degOpt + mindegArc, 360.);  // e.g. 270-0 = 270
+        var cwerr = degDrill-360. - mod(degOpt + mindegArc, 360.);  // e.g. -90-0 = -90 (correct)
+        var signederror = Math.abs(ccwerr) < Math.abs(cwerr) ? ccwerr : cwerr;
+        return signederror;
+    }
+
+    function nextTrial(pxDrill, pyDrill){
         jsb_recordTurkData(function(){
             // if have more trials to go...
             console.log('trial '+itrial.toString()+' saved successfully.');
             itrial += 1;  // move to next trial
             if (itrial < NTRIAL){  // if more trials to go...
-                xOpt = XOPTQUEUE[itrial];  // get target
-                xDrill = pix2mathX([pxDrill])[0];  // convert to numeric space
-                signederror = xDrill - xOpt;
+                degDrill = pToDegDrill(pxDrill, pyDrill, pxStart, pyStart);
+                signederror = get_signederror(degDrill, degOpt);
                 fDrill = errorToPoints(Math.abs(signederror)); // get the reward
                 expScore += fDrill;
                 drill_history.push({'px': pxDrill,
@@ -304,30 +329,12 @@ var rotationGame = function(){
 
 
     function errorToPoints(unsignederror) {
-        return Math.round((1 - (unsignederror/XRANGE)) * 100);
+        return Math.round((1 - (unsignederror/DEGRANGE)) * 100);
     }
 
 
     function endExp(){
         psiTurk.showPage('debriefing.html');
-    }
-
-
-    // function math2pixX(A){
-    //     var a = A.map(function(elt){return elt-XMIN})
-    //     a = a.map(function(elt){return elt/XRANGE}) // now [0,1]
-    //     a = a.map(function(elt){return elt*PXRANGE})
-    //     a = a.map(function(elt){return elt+PXMIN})
-    //     return a;
-    // }
-
-
-    function pix2mathX(A){
-        var a = A.map(function(elt){return elt-PXMIN})
-        a = a.map(function(elt){return elt/PXRANGE}) // now [0,1]
-        a = a.map(function(elt){return elt*XRANGE})
-        a = a.map(function(elt){return elt+XMIN})
-        return a;
     }
 
 
@@ -355,11 +362,11 @@ var rotationGame = function(){
     function jsb_recordTurkData(callback){
         psiTurk.recordTrialData({
             'trial': itrial,
-            'mindomain': XMIN,
-            'maxdomain': XMAX,
+            'mindomain': DEGMIN,
+            'maxdomain': DEGMAX,
             'expScore': expScore,
-            'xOpt': xOpt,
-            'xDrill': xDrill,
+            'degOpt': degOpt,
+            'degDrill': degDrill,
             'signederror': signederror,
             'fDrill': fDrill,
             'pxDrill': pxDrill,

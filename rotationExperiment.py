@@ -1,17 +1,17 @@
-from numpy import sum, concatenate, repeat, linspace, abs, ndarray, arange
+from numpy import sum, concatenate, repeat, linspace, abs, ndarray, arange, mean
 from numpy.random import RandomState, permutation
 from numpy import array as npa
 
 def rotationExperiment(domainbounds, rotmag, nPerXOpt,\
                        mindegArcPool, maxdegArcPool, nEpicycle, radwrtxArc,\
-                       maxrotmag=None, base_xOpt=None, edgebuf=None,\
+                       maxrotmag=None, degWhereRotIsZero=None, edgebuf=None,\
                        rngseed=None, blockTypes=None, agTypes=None,\
                        xOrigin=0.5, yOrigin=0.5):
     """FIXME: need to include the params used for making clickArcQueue:
     mindegArcPool, maxdegArcPool, nEpicycle, radwrtx, xOrigin, and yOrigin.
 
     def rotationExperiment(domainbounds, rotmag, nPerXOpt,
-                           maxrotmag=None, base_xOpt=None, edgebuf=None,
+                           maxrotmag=None, degWhereRotIsZero=None, edgebuf=None,
                            rngseed=None, blockTypes=None, agTypes=None)
 
     inputs:
@@ -24,9 +24,9 @@ def rotationExperiment(domainbounds, rotmag, nPerXOpt,\
         - nPerXOpt (loint): n trials for each block
         - maxrotmag (float, default=None): max rotation used in this experiment
             by any subject (not necessarily this sub).  Useful for matching
-            base_xOpt between conditions, which is done randomly.
+            degWhereRotIsZero between conditions, which is done randomly.
             if None, maxrotmag=rotmag
-        - base_xOpt (float, default=None):  where on the line it means
+        - degWhereRotIsZero (float, default=None):  where on the line it means
             rotation equals zero.  If None, will be set randomly to fall
             within edgebuf of domain bounds.
         - rngseed (int, default=None): random number generator seed for
@@ -47,7 +47,7 @@ def rotationExperiment(domainbounds, rotmag, nPerXOpt,\
     # ambuiguous what rotation or counterrotation mean when multiple rots
     if type(rotmag) is list: assert not blockTypes
 
-    if not base_xOpt:  # random valid base_xOpt (i.e. veridical location)
+    if not degWhereRotIsZero:  # random valid degWhereRotIsZero (i.e. veridical location)
         if rngseed: rng = RandomState(rngseed)  # use seed if given
         else: rng = RandomState()
 
@@ -58,9 +58,9 @@ def rotationExperiment(domainbounds, rotmag, nPerXOpt,\
         # (wrt maxrotmag for counterbalancing b.t. groups)
         good = False
         while not good:
-            base_xOpt = rng.rand()
-            if base_xOpt - maxrotmag > mindomain + edgebuf:
-                if base_xOpt + maxrotmag < maxdomain - edgebuf:
+            degWhereRotIsZero = rng.uniform(low=mindomain, high=maxdomain)
+            if degWhereRotIsZero - maxrotmag > mindomain + edgebuf:
+                if degWhereRotIsZero + maxrotmag < maxdomain - edgebuf:
                     good = True
 
     # default rotation for all blocks (so you can pass vector of custom rots)
@@ -68,17 +68,17 @@ def rotationExperiment(domainbounds, rotmag, nPerXOpt,\
         blockTypes = ['rotation' for _ in xrange(nBlock)]
 
     xOpts = []
-    # get xOpt for each block relative to base_xOpt
+    # get xOpt for each block relative to degWhereRotIsZero
     for bt in blockTypes:
         basenames = ['baseline', 'base', 'b']
         rotnames = ['rotation', 'rot', 'r']
         crotnames = ['counterrotation', 'crot', 'c']
         if bt in basenames:
-            xOpt = base_xOpt
+            xOpt = degWhereRotIsZero
         elif bt in rotnames:
-            xOpt = base_xOpt + rotmag
+            xOpt = degWhereRotIsZero + rotmag
         elif bt in crotnames:
-            xOpt = base_xOpt - rotmag
+            xOpt = degWhereRotIsZero - rotmag
         else:
             raise ValueError('invalid blockType name %s' % (bt))
         xOpts.append(xOpt)
