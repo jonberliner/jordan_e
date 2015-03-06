@@ -12,79 +12,171 @@ var rotationGame = function(){
     var H = canvas.height;
     // groundline is homage to the mining task (it's the groung)
     // this is the arc where people can click (i.e. the "choice set")
-    var GROUNDLINEY = H - H*0.5;
-    var GROUNDLINE2BOTTOM = H - GROUNDLINEY;
     var stage = new createjs.Stage(canvas);
-    stage.enableMouseOver(10); // check for mouseovers 5x per sec
+    var CHECKMOUSEFREQ;  // check for mouseover CHECKMOUSEFREQ times per sec
+    stage.enableMouseOver(CHECKMOUSEFREQ);
 
     //////// STYLE SHEETS FOR THE GAME
     var STYLE = [];
-    STYLE.groundLine = [];
+    STYLE.choiceSet = [];
     STYLE.ground = [];
     STYLE.sky = [];
-    STYLE.groundLine_glow = [];
+    STYLE.choiceSet_glow = [];
     STYLE.scalar_obs = [];
 
-    STYLE.groundLine.STROKECOLOR = '#D9BAAB';
-    STYLE.groundLine.FILLCOLOR = null;
-    STYLE.groundLine.STROKESIZE = 10;
+    STYLE.choiceSet.arc = [];
+    STYLE.choiceSet.arc.strokeColor = '#D9BAAB';
+    STYLE.choiceSet.arc.fillColor = null;
+    STYLE.choiceSet.arc.strokeSize = 10;
 
-    STYLE.ground.STROKESIZE = 5;
-    STYLE.ground.STROKECOLOR = '#A0522D';
-    STYLE.ground.FILLCOLOR = '#A0522D';
+    STYLE.ground.strokeSize = 5;
+    STYLE.ground.strokeColor = '#A0522D';
+    STYLE.ground.fillColor = '#A0522D';
 
-    STYLE.sky.STROKESIZE = 5;
-    STYLE.sky.STROKECOLOR = '#33CCCC';
-    STYLE.sky.FILLCOLOR = '#33CCCC';
+    STYLE.sky.strokeSize = 5;
+    STYLE.sky.strokeColor = '#33CCCC';
+    STYLE.sky.fillColor = '#33CCCC';
 
-    STYLE.groundLine_glow.STROKECOLOR = '#EACDDC';
-    STYLE.groundLine_glow.STROKESIZE = 15;
+    STYLE.choiceSet.arc_glow = [];
+    STYLE.choiceSet.arc_glow.strokeColor = '#EACDDC';
+    STYLE.choiceSet.arc_glow.strokeSize = 15;
 
     STYLE.scalar_obs.TEXTSTYLE = '2em Helvetica';
     STYLE.scalar_obs.COLOR = 'white';
 
+    STYLE.startPoint.strokeColor = '#555555';
+    STYLE.startPoint.fillColor = '#888888';
+    STYLE.startPoint.strokeSize = 2;
+    STYLE.startPoint.radius = 20;
+
 
     //////// GAME OBJECT GRAPHICS
     // ground Graphics
-    var ground = new createjs.Shape();
-    ground.graphics.s(STYLE.ground.STROKECOLOR).
-                    f(STYLE.ground.FILLCOLOR).
-                    ss(STYLE.ground.STROKESIZE, 0, 0).
-                    r(0, GROUNDLINEY, W, GROUNDLINE2BOTTOM);
-    ground.visible = true;
+    var background; // container for background Shape objs
+    function make_background(style, canvasH, canvasW){
+        var background_objs = {};
+        var groundLineY = canvasH - canvasH*0.5;
+        var groundLineToBottom = canvasH - groundLineY;
+        var ground = new createjs.Shape();
+        ground.graphics.s(style.ground.strokeColor).
+                        f(style.ground.fillColor).
+                        ss(style.ground.strokeSize, 0, 0).
+                        r(0, groundLineY, canvasW, groundLineToBottom);
+        ground.visible = true;
 
-    // sky Graphics
-    var sky = new createjs.Shape();
-    sky.graphics.s(STYLE.sky.STROKECOLOR).
-                    f(STYLE.sky.FILLCOLOR).
-                    ss(STYLE.sky.STROKESIZE, 0, 0).
-                    r(0, 0, W, GROUNDLINEY);
-    sky.visible = true;
+        // sky Graphics
+        var sky = new createjs.Shape();
+        sky.graphics.s(style.sky.strokeColor).
+                        f(style.sky.fillColor).
+                        ss(style.sky.strokeSize, 0, 0).
+                        r(0, 0, W, groundLineY);
+        sky.visible = true;
 
-    // groundLine_glow Graphics
-    var groundLine_glow = new createjs.Shape();
+        // add to background array
+        background_objs.ground = ground;
+        background_objs.sky = sky;
 
-    // groundLine Graphics
-    var groundLine = new createjs.Shape();
+        return background_objs;
+    }
 
 
-    //////// GAME OBJECT ACTIONS
-    // groundLine Actions
-    groundLine.addEventListener('mouseover', function(){
-        groundLine_glow.visible = true;
-        stage.update();
-    });
+    var startPoint;
+    function make_startPoint(style){
+        var startPoint_objs = {};
+        // startPoint graphics
+        var startPoint = new createjs.Shape();
+        startPoint.graphics.s(style.startPoint.strokeColor).
+                        f(style.startPoint.fillColor).
+                        ss(style.startPoint.strokeSize, 0, 0).
+                        r(pxStart, pyStart, style.startPoint.radius);
+        startPoint.visible = true;
+        // startPoint Actions
+        startPoint.addEventListener('tick', function(){
+            pxMouse = stage.mouseX;
+            pyMouse = stage.mouseY;
+            if(trialSection==='goToStart'){
+                // check if in startPoint
+                var inStartPoint = withinRad(pxMouse, pyMouse, pxStart, pyStart,
+                                             style.startPoint.radius);
+                if(inStartPoint){
+                    timeInStart += 1;
+                    // check if there long enough
+                    if(timeInStart > MINTIMEINSTART){
+                        trialSection = 'makeChoice';
+                        startPoint.visible = false;
+                        choiceSet.arc.visible = true;
+                    }
+                }
+                else {
+                    timeInStart = 0;
+                }  // end if(inStartPoint)
+            }  // end trialSection==='goToStart'
 
-    groundLine.addEventListener('mouseout', function(){
-        groundLine_glow.visible = false;
-        stage.update();
-    });
+            // TODO: this is if you want times reaches
+            // else if(trialSection==='inStartPoint'){
+            //     // see if moving fast enough
+            //     var mouseSpeed = get_mouseSpeed(pxMouse, pyMouse,
+            //                                     prev_pxMouse, prev_pyMouse);
+            //     if(mouseSpeed > MINMOUSEMOVESPEED){
+            //         trialSection = 'moving';
+            //     }
+        });  // end startPoint.addEventListener('tick')
+        startPoint_objs.startPoint = startPoint;
 
-    groundLine.addEventListener('click', function(){
-        pxDrill = stage.mouseX;
-        pyDrill = stage.mouseY;
-        nextTrial(pxDrill, pyDrill);
-    });
+        return startPoint_objs;
+    }
+
+
+    var choiceSet;
+    function make_choiceSet(style){
+        var choiceSet = {};
+
+        var choiceArc = new createjs.Shape();
+        var choiceArc_glow = new createjs.Shape();
+
+
+        // choiceArc Actions
+        choiceArc.addEventListener('mouseover', function(){
+            choiceArc_glow.visible = true;
+            stage.update();
+        });
+
+        choiceArc.addEventListener('mouseout', function(){
+            choiceArc_glow.visible = false;
+            stage.update();
+        });
+
+        choiceArc.addEventListener('click', function(){
+            if(trialSection==='inStart'){
+                pxDrill = stage.mouseX;
+                pyDrill = stage.mouseY;
+                choice_made(pxDrill, pyDrill);
+            }
+        });
+
+        choiceArc.addEventListener('tick', function(){
+            if(trialSection==='makeChoice'){
+                timeToChoice += 1;
+                if(timeToChoice > MAXTIMETOCHOICE){
+                    trialSection = 'tooSlow';
+                }
+            }
+        });
+
+        choiceSet.arc = choiceArc;
+        choiceSet.arc_glow = choiceArc_glow;
+    }
+
+
+
+    function get_dist(p1, p2){
+        return Math.sqrt(Math.pow(p1[0]-p2[0], 2.) +
+                        Math.pow(p1[1]-p2[1], 2.));
+    }
+
+    function withinRad(x, y, xOrigin, yOrigin, rad){
+        return get_dist([x, y], [xOrigin, yOrigin]) < rad;
+    }
 
 
     function radToDeg(theta){
@@ -100,6 +192,8 @@ var rotationGame = function(){
 
 
     //////// GAME LOGIC
+    var trialSection, timeInStart, timeMoving;
+    var MINTIMEINSTART, MAXTIMETOCHOICE;
     var DEGMIN, DEGMAX, DEGRANGE;
     var NTRIAL
     var drill_history, xDrill, pxDrill, pyDrill, fDrill, degDrill;
@@ -159,24 +253,63 @@ var rotationGame = function(){
     }
 
 
-    function update_groundLine(){
+    function update_choiceSet(){
         // negatives come from >0 being down screen.  huge PITA
-        groundLine.graphics.clear();
-        groundLine_glow.graphics.clear();
-        groundLine.graphics.s(STYLE.groundLine.STROKECOLOR).
-                            ss(STYLE.groundLine.STROKESIZE, 0, 0).
-                            arc(pxStart, pyStart, pradArc,
-                                -minthetaArc, -maxthetaArc, true);
+        choiceSet.arc.graphics.clear();
+        choiceSet.arc_glow.graphics.clear();
+        choiceSet.arc.graphics.s(STYLE.choiceSet.arc.strokeColor).
+                               ss(STYLE.choiceSet.arc.strokeSize, 0, 0).
+                               arc(pxStart, pyStart, pradArc,
+                                   -minthetaArc, -maxthetaArc, true);
 
 
-        groundLine_glow.graphics.s(STYLE.groundLine_glow.STROKECOLOR).
-                            ss(STYLE.groundLine_glow.STROKESIZE, 0, 0).
-                            arc(pxStart, pyStart, pradArc,
-                                -minthetaArc, -maxthetaArc, true);
-
-        groundLine_glow.visible = false;
-        groundLine.visible = true;
+        choiceSet.arc_glow.graphics.s(STYLE.choiceSet.arc_glow.strokeColor).
+                                ss(STYLE.choiceSet.arc_glow.strokeSize, 0, 0).
+                                arc(pxStart, pyStart, pradArc,
+                                    -minthetaArc, -maxthetaArc, true);
     }
+
+
+    function choice_made(pxDrill, pyDrill){
+        store_thisTrial(pxDrill, pyDrill, function(){
+            itrial += 1;
+            setup_nextTrial();
+        });
+    }
+
+
+    function store_thisTrial(pxDrill, pyDrill, callback){
+        // store things from this trial
+        degDrill = pToDegDrill(pxDrill, pyDrill, pxStart, pyStart);
+        signederror = get_signederror(degDrill, degOpt);
+        fDrill = errorToPoints(Math.abs(signederror)); // get the reward
+        expScore += fDrill;
+        drill_history.push({'px': pxDrill,
+                            'py': pyDrill,
+                            'mindegArc': mindegArc,
+                            'f': fDrill,
+                            'itrial': itrial});
+        callback();
+    }
+
+
+    function setup_nextTrial(){
+        // set up things for the next trial
+        set_itrialParams();
+        update_choiceSet();
+        // update feedback
+        unstageArray(obs_array);
+        // show scores from last NLASTTOSHOW trials
+        NLASTTOSHOW = 2;
+        obs_array = make_vis_obs_array(drill_history, mindegArc,
+            function(elt){return nlast(elt, itrial, NLASTTOSHOW)});
+        stageArray(obs_array);
+        startPoint.visible = true;
+        trialSection = 'goToStart';
+    }
+
+
+
 
 
     customRoute('init_experiment',  // call init_experiment in custom.py...
@@ -197,7 +330,7 @@ var rotationGame = function(){
                     DEGOPTQUEUE = resp['degoptqueue'];  // which location gets 100% points?
 
                     set_itrialParams();
-                    update_groundLine();
+                    update_choiceSet();
 
                     NTRIAL = DEGOPTQUEUE.length;
 
@@ -206,12 +339,18 @@ var rotationGame = function(){
                     obs_array = [];
                     drill_history = [];
 
+                    background = make_background(STYLE, H, W);
+                    startPoint = make_startPoint(STYLE);
+                    choiceSet = make_choiceSet(STYLE);
+
+                    stageArray(background);
+                    stageArray(startPoint);
+                    stageArray(choiceSet);
+
                     // add all objects to the stage
-                    stage.addChild(ground);
-                    stage.addChild(sky);
-                    stage.addChild(groundLine_glow);
-                    stage.addChild(groundLine);
                     stage.update();
+
+                    trialSection = 'goToStart';
 
                     console.log('init_experiment was called')
                 });
@@ -233,23 +372,29 @@ var rotationGame = function(){
         return signederror;
     }
 
+
     function nextTrial(pxDrill, pyDrill){
         jsb_recordTurkData(function(){
             // if have more trials to go...
             console.log('trial '+itrial.toString()+' saved successfully.');
             itrial += 1;  // move to next trial
             if (itrial < NTRIAL){  // if more trials to go...
+
+                // store things from this trial
                 degDrill = pToDegDrill(pxDrill, pyDrill, pxStart, pyStart);
                 signederror = get_signederror(degDrill, degOpt);
                 fDrill = errorToPoints(Math.abs(signederror)); // get the reward
                 expScore += fDrill;
                 drill_history.push({'px': pxDrill,
                                     'py': pyDrill,
+                                    'degDrill', degDrill,
+                                    'mindegArc': mindegArc,
                                     'f': fDrill,
                                     'itrial': itrial});
-                // prepare next click arc
+
+                // set up things for the next trial
                 set_itrialParams();
-                update_groundLine();
+                update_choiceSet();
                 // update feedback
                 unstageArray(obs_array);
                 // show scores from last NLASTTOSHOW trials
@@ -285,9 +430,13 @@ var rotationGame = function(){
     }
 
 
-    function make_vis_obs_array(drill_history, critfcn) {
+    function make_vis_obs_array(drill_history, mindegArc, critfcn) {
         // takes drill_history, filters by crit, returns array of ScalarObs
         var to_show = drill_history.filter(critfcn);  // filter to only shown
+        // rotate to match choiceArc's rotation for this trial
+        to_show = to_show.map(function(elt){
+                                  elt.degDrill += mindegArc - elt.mindegArc;
+                                  return elt;});
         // make obs for all valid sams in drill_history
         var obs_array = to_show.map(
             function(elt){return ScalarObs(elt.px, elt.py, elt.f)}
