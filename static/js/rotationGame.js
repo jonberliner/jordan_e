@@ -13,39 +13,39 @@ var rotationGame = function(){
     // groundline is homage to the mining task (it's the groung)
     // this is the arc where people can click (i.e. the "choice set")
     var stage = new createjs.Stage(canvas);
-    var CHECKMOUSEFREQ;  // check for mouseover CHECKMOUSEFREQ times per sec
+    var CHECKMOUSEFREQ = 10;  // check for mouseover CHECKMOUSEFREQ times per sec
     stage.enableMouseOver(CHECKMOUSEFREQ);
 
     //////// STYLE SHEETS FOR THE GAME
     var STYLE = [];
-    STYLE.choiceSet = [];
-    STYLE.ground = [];
-    STYLE.sky = [];
-    STYLE.choiceSet_glow = [];
-    STYLE.scalar_obs = [];
+    STYLE.bg = [];
+    STYLE.bg.ground = [];
+    STYLE.bg.ground.strokeSize = 5;
+    STYLE.bg.ground.strokeColor = '#A0522D';
+    STYLE.bg.ground.fillColor = '#A0522D';
 
+    STYLE.bg.sky = [];
+    STYLE.bg.sky.strokeSize = 5;
+    STYLE.bg.sky.strokeColor = '#33CCCC';
+    STYLE.bg.sky.fillColor = '#33CCCC';
+
+    STYLE.choiceSet = [];
     STYLE.choiceSet.arc = [];
     STYLE.choiceSet.arc.strokeColor = '#D9BAAB';
     STYLE.choiceSet.arc.fillColor = null;
     STYLE.choiceSet.arc.strokeSize = 10;
 
-    STYLE.ground.strokeSize = 5;
-    STYLE.ground.strokeColor = '#A0522D';
-    STYLE.ground.fillColor = '#A0522D';
-
-    STYLE.sky.strokeSize = 5;
-    STYLE.sky.strokeColor = '#33CCCC';
-    STYLE.sky.fillColor = '#33CCCC';
-
     STYLE.choiceSet.arc_glow = [];
     STYLE.choiceSet.arc_glow.strokeColor = '#EACDDC';
     STYLE.choiceSet.arc_glow.strokeSize = 15;
 
+    STYLE.scalar_obs = [];
     STYLE.scalar_obs.TEXTSTYLE = '2em Helvetica';
     STYLE.scalar_obs.COLOR = 'white';
 
-    STYLE.startPoint.strokeColor = '#555555';
-    STYLE.startPoint.fillColor = '#888888';
+    STYLE.startPoint = [];
+    STYLE.startPoint.strokeColor = '#D9BAAB';
+    STYLE.startPoint.fillColor = '#D9BAAB';
     STYLE.startPoint.strokeSize = 2;
     STYLE.startPoint.radius = 20;
 
@@ -54,27 +54,27 @@ var rotationGame = function(){
     // ground Graphics
     var background; // container for background Shape objs
     function make_background(style, canvasH, canvasW){
-        var background_objs = {};
+        var background_objs = [];
         var groundLineY = canvasH - canvasH*0.5;
         var groundLineToBottom = canvasH - groundLineY;
         var ground = new createjs.Shape();
-        ground.graphics.s(style.ground.strokeColor).
-                        f(style.ground.fillColor).
-                        ss(style.ground.strokeSize, 0, 0).
+        ground.graphics.s(style.bg.ground.strokeColor).
+                        f(style.bg.ground.fillColor).
+                        ss(style.bg.ground.strokeSize, 0, 0).
                         r(0, groundLineY, canvasW, groundLineToBottom);
         ground.visible = true;
 
         // sky Graphics
         var sky = new createjs.Shape();
-        sky.graphics.s(style.sky.strokeColor).
-                        f(style.sky.fillColor).
-                        ss(style.sky.strokeSize, 0, 0).
+        sky.graphics.s(style.bg.sky.strokeColor).
+                        f(style.bg.sky.fillColor).
+                        ss(style.bg.sky.strokeSize, 0, 0).
                         r(0, 0, W, groundLineY);
         sky.visible = true;
 
         // add to background array
-        background_objs.ground = ground;
-        background_objs.sky = sky;
+        background_objs.push(ground);
+        background_objs.push(sky);
 
         return background_objs;
     }
@@ -88,7 +88,7 @@ var rotationGame = function(){
         startPoint.graphics.s(style.startPoint.strokeColor).
                         f(style.startPoint.fillColor).
                         ss(style.startPoint.strokeSize, 0, 0).
-                        r(pxStart, pyStart, style.startPoint.radius);
+                        dc(pxStart, pyStart, style.startPoint.radius);
         startPoint.visible = true;
         // startPoint Actions
         startPoint.addEventListener('tick', function(){
@@ -100,15 +100,17 @@ var rotationGame = function(){
                                              style.startPoint.radius);
                 if(inStartPoint){
                     timeInStart += 1;
-                    // check if there long enough
-                    if(timeInStart > MINTIMEINSTART){
+                    console.log(timeInStart);
+                    stage.update();
+                        // check if there long enough
+                    if(timeInStart > FRMINTIMEINSTART){
                         trialSection = 'makeChoice';
                         startPoint.visible = false;
                         choiceSet.arc.visible = true;
                     }
-                }
-                else {
-                    timeInStart = 0;
+                    else {
+                        timeInStart = 0;
+                    } // end if(timeInStart > FRMINTIMEINSTART)
                 }  // end if(inStartPoint)
             }  // end trialSection==='goToStart'
 
@@ -137,6 +139,7 @@ var rotationGame = function(){
 
         // choiceArc Actions
         choiceArc.addEventListener('mouseover', function(){
+            console.log('choiceArc mouseover was called');
             choiceArc_glow.visible = true;
             stage.update();
         });
@@ -165,6 +168,7 @@ var rotationGame = function(){
 
         choiceSet.arc = choiceArc;
         choiceSet.arc_glow = choiceArc_glow;
+        return choiceSet;
     }
 
 
@@ -193,7 +197,8 @@ var rotationGame = function(){
 
     //////// GAME LOGIC
     var trialSection, timeInStart, timeMoving;
-    var MINTIMEINSTART, MAXTIMETOCHOICE;
+    var MSMINTIMEINSTART, MSMAXTIMETOCHOICE, FRMINTIMEINSTART;
+    var NLASTTOSHOW;
     var DEGMIN, DEGMAX, DEGRANGE;
     var NTRIAL
     var drill_history, xDrill, pxDrill, pyDrill, fDrill, degDrill;
@@ -203,11 +208,11 @@ var rotationGame = function(){
     var itrial;
     var DEGOPTQUEUE, degOpt;
     var RNGSEED;
-    var NLASTTOSHOW;
     var XSTARTQUEUE, YSTARTQUEUE, xStart, yStart, pxStart, pyStart;
     var RADWRTXARCQUEUE, radwrtxArc, pradArc;  // radius from startpoint to choice arc
     var MINDEGARCQUEUE, MAXDEGARCQUEUE, mindegArc, maxdegArc, rangedegArc;
     var minthetaArc, maxthetaArc;
+    var pxMouse, pyMouse;
 
 
     function set_itrialParams(){
@@ -328,9 +333,13 @@ var rotationGame = function(){
                     MINDEGARCQUEUE = resp['mindegarcqueue'];
                     MAXDEGARCQUEUE = resp['maxdegarcqueue'];
                     DEGOPTQUEUE = resp['degoptqueue'];  // which location gets 100% points?
+                    NLASTTOSHOW = resp['nlasttoshow'];
+                    MSMINTIMEINSTART = resp['msmintimeinstart'];
+                    MSMAXTIMETOCHOICE = resp['msmaxtimetochoice'];
+
+                    FRMINTIMEINSTART = MSMINTIMEINSTART * (1./CHECKMOUSEFREQ);
 
                     set_itrialParams();
-                    update_choiceSet();
 
                     NTRIAL = DEGOPTQUEUE.length;
 
@@ -343,9 +352,14 @@ var rotationGame = function(){
                     startPoint = make_startPoint(STYLE);
                     choiceSet = make_choiceSet(STYLE);
 
-                    stageArray(background);
-                    stageArray(startPoint);
-                    stageArray(choiceSet);
+                    update_choiceSet();
+
+                    stageObject(background);
+                    stageObject(startPoint);
+                    choiceSet.arc_glow.visible = false;
+                    choiceSet.arc.visible = true;
+                    stage.addChild(choiceSet.arc_glow);
+                    stage.addChild(choiceSet.arc);
 
                     // add all objects to the stage
                     stage.update();
@@ -387,7 +401,7 @@ var rotationGame = function(){
                 expScore += fDrill;
                 drill_history.push({'px': pxDrill,
                                     'py': pyDrill,
-                                    'degDrill', degDrill,
+                                    'degDrill': degDrill,
                                     'mindegArc': mindegArc,
                                     'f': fDrill,
                                     'itrial': itrial});
@@ -468,12 +482,32 @@ var rotationGame = function(){
     }
 
 
+    function stageObject(object){
+        // add all fields of object to the canvas
+        for (var field in object){
+            stage.addChild(object[field]);
+            object[field].visible = true;
+        }
+        stage.update();
+    }
+
+
     function unstageArray(shapeArray){
         // remove all elements in shapeArray from the canvas
         shapeArray.map(function(elt){
             elt.visible = false;
             stage.removeChild(elt);
         });
+    }
+
+
+    function unstageObject(object){
+        // remove all fields of object from the canvas
+        for (var field in object){
+            object[field].visible = true;
+            stage.removeChild(object[field]);
+        }
+        stage.update();
     }
 
 

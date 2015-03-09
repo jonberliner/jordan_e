@@ -89,7 +89,6 @@ def init_experiment():
     XORIGIN = 0.5  # x startpoint as percentage of window width
     YORIGIN = 0.5  # y startpoint as percentage of window height
 
-
     experParams = {# needed for make_mixed_xOptQueue
                    'domainbounds': [MINDOMAIN, MAXDOMAIN],
                    'rotmag': ROTMAG,
@@ -112,6 +111,16 @@ def init_experiment():
     # make experiment params for this subject!
     # (** means unpack and pass in params in a dict)
     subParams = rotationExperiment(**experParams)
+
+    # add experiment params used on client side
+    NLASTTOSHOW = 2  # number of prev scores to show on arc
+    MSMINTIMEINSTART = 500  # ms to spend in startpoint before choice
+    MSMAXTIMETOCHOICE = 2000
+
+    experParams['nlasttoshow'] = NLASTTOSHOW
+    experParams['msmintimeinstart'] = MSMINTIMEINSTART
+    experParams['msmaxtimetochoice'] = MSMAXTIMETOCHOICE
+
     # bundle response to send
     resp = {}
     for f in subParams:
