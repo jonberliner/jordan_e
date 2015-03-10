@@ -3,72 +3,272 @@
 ********************/
 var rotationGame = function(){
     "use strict";
-
-    // use instead of % b.c. javascript can't do negative mod
-    function mod(a, b){return ((a%b)+b)%b;}
-    // var njs = numeric;
     var canvas = document.getElementById('easel');
     var W = canvas.width;
     var H = canvas.height;
-    // groundline is homage to the mining task (it's the groung)
-    // this is the arc where people can click (i.e. the "choice set")
-    var stage = new createjs.Stage(canvas);
+
+    var stage = new createjs.Stage(canvas);  // objects will go on stage
+
     var CHECKMOUSEFREQ = 10;  // check for mouseover CHECKMOUSEFREQ times per sec
     stage.enableMouseOver(CHECKMOUSEFREQ);
 
-    //////// STYLE SHEETS FOR THE GAME
-    var STYLE = [];
-    STYLE.bg = [];
-    STYLE.bg.ground = [];
-    STYLE.bg.ground.strokeSize = 5;
-    STYLE.bg.ground.strokeColor = '#A0522D';
-    STYLE.bg.ground.fillColor = '#A0522D';
+    var MSTICK = 100;  // run checkOnTick every MSTICK ms
+    createjs.Ticker.setInterval(MSTICK);
+    createjs.Ticker.addEventListener("tick", function(event){
+        checkOnTick(event, tp, wp, EP, STYLE.startPoint.radius);
+    });
 
-    STYLE.bg.sky = [];
-    STYLE.bg.sky.strokeSize = 5;
-    STYLE.bg.sky.strokeColor = '#33CCCC';
-    STYLE.bg.sky.fillColor = '#33CCCC';
+    //////// INITIATE GAME
+    var EP = {};  // params that stay constant through experiment
+    var tp = {};  // params that change trial by trial
+    var wp = {};  // params that can change within a trial
+    var tsub = {}; // trial responses from subject that change trial by trial
+    var obs_array, drill_history;  // used to show (possibly persistent) feedback
+    var background, startPoint, choiceSet; // containers that make up easeljs objects
+    var QUEUES = {};  // queues containing trial params for each trial of experiment
+    customRoute('init_experiment',  // call init_experiment in custom.py...
+                {'condition': condition,  // w params condition adn counter...
+                 'counterbalance': counterbalance},
+                 function(resp){  // once to get back resp from custom.py...
+                    EP.RNGSEED = resp['rngseed'];
+                    EP.INITSCORE = resp['initscore'];
+                    EP.MINDEG = resp['mindeg'];  // min degree for choiceSet
+                    EP.MAXDEG = resp['maxdeg'];  // max degree for choiceSet
+                    EP.RANGEDEG = EP.MAXDEG - EP.MINDEG;
+                    EP.NTRIAL = resp['ntrial'];
+                    QUEUES.XSTART = resp['xoriginqueue'];
+                    QUEUES.YSTART = resp['yoriginqueue'];
+                    QUEUES.RADWRTXARC = resp['radwrtxarcqueue'];
+                    QUEUES.MINDEGARC = resp['mindegarcqueue'];
+                    QUEUES.MAXDEGARC = resp['maxdegarcqueue'];
+                    QUEUES.DEGOPT = resp['degoptqueue'];  // which location gets 100% points?
+                    EP.NTRIAL = QUEUES.DEGOPT.length;
 
-    STYLE.choiceSet = [];
-    STYLE.choiceSet.arc = [];
-    STYLE.choiceSet.arc.strokeColor = '#D9BAAB';
-    STYLE.choiceSet.arc.fillColor = null;
-    STYLE.choiceSet.arc.strokeSize = 10;
+                    EP.NLASTTOSHOW = resp['nlasttoshow'];
+                    EP.MSMINTIMEINSTART = resp['msmintimeinstart'];
+                    EP.MSMAXTIMETOCHOICE = resp['msmaxtimetochoice'];
+                    if(EP.MSMAXTIMETOCHOICE==='None'){
+                        EP.MSMAXTIMETOCHOICE = null;
+                    }
 
-    STYLE.choiceSet.arc_glow = [];
-    STYLE.choiceSet.arc_glow.strokeColor = '#EACDDC';
-    STYLE.choiceSet.arc_glow.strokeSize = 15;
+                    tp.itrial = resp['inititrial'];
+                    tp = set_itrialParams(tp.itrial, QUEUES);
+                    tsub.expScore = EP.INITSCORE;
 
-    STYLE.scalar_obs = [];
-    STYLE.scalar_obs.TEXTSTYLE = '2em Helvetica';
-    STYLE.scalar_obs.COLOR = 'white';
+                    obs_array = [];
+                    drill_history = [];
 
-    STYLE.startPoint = [];
-    STYLE.startPoint.strokeColor = '#D9BAAB';
-    STYLE.startPoint.fillColor = '#D9BAAB';
-    STYLE.startPoint.strokeSize = 2;
-    STYLE.startPoint.radius = 20;
+                    background = make_background(STYLE.background, H, W);
+                    startPoint = make_startPoint(tp.pxStart, tp.pyStart, STYLE.startPoint);
+                    choiceSet = make_choiceSet();
+
+                    update_choiceSet(tp.pxStart, tp.pyStart, tp.pradArc,
+                                     tp.minthetaArc, tp.maxthetaArc, STYLE.choiceSet);
+
+                    stageObject(background);
+                    stageObject(startPoint);
+                    choiceSet.arc_glow.visible = false;
+                    choiceSet.arc.visible = true;
+                    stage.addChild(choiceSet.arc_glow);
+                    stage.addChild(choiceSet.arc);
+
+                    stage.update();
+
+                    // let's get it started!
+                    setup_goToStart();
+                }  // end callback
+    );  // end init_experiment
 
 
-    //////// GAME OBJECT GRAPHICS
-    // ground Graphics
-    var background; // container for background Shape objs
-    function make_background(style, canvasH, canvasW){
+    //////// GAME LOGIC (besides createjs shape event handlers)
+    function checkOnTick(event, tp, wp, EP, radStart){
+        // this function checks the logic loop every MSTICK seconds
+        // only checks timing things - interaction with objects should be
+        // added with addEventListener in a easeljs object's construction
+        if (wp.trialSection==='goToStart'){
+            var pxMouse = stage.mouseX;
+            var pyMouse = stage.mouseY;
+            var inStartPoint = withinRad(pxMouse, pyMouse, tp.pxStart, tp.pyStart,
+                                         radStart);
+            if(inStartPoint){
+                var tNow = getTime();
+                if(tNow - wp.tInStart > EP.MSMINTIMEINSTART){
+                    setup_makeChoice();
+                }
+            }
+        }  // end goToStart
+        else if (wp.trialSection==='makeChoice'){
+            if(EP.MSMAXTIMETOCHOICE !== null){  // if choice time constraint
+                var tNow = getTime();
+                if(tNow - wp.tChoiceStarted > EP.MSMAXTIMETOCHOICE){
+                    setup_tooSlow();
+                }
+            }
+        }  // end makeChoice
+        else if (wp.trialSection==='tooSlow'){
+            var tNow = getTime();
+            if(tNow - wp.tTooSlow > EP.MSTOOSLOW){
+                msgs.tooSlow.visible = false;
+                setup_goToStartPoint();
+            }
+        }  // end tooSlow
+        stage.update(event);
+    }
+
+
+    //// setups for various parts of a trial
+    function setup_goToStart(){
+        // what happens when we move to 'goToStart' section of a trial
+        console.log('setup_goToStart was called');
+        wp.trialSection = 'goToStart';
+        choiceSet.arc.visible = false;
+        choiceSet.arc_glow.visible = false;
+        startPoint.startPoint.visible = true;
+        stage.update();
+    }
+
+
+    function setup_makeChoice(){
+        // what happens when we move to 'makeChoice' section of a trial
+        wp.trialSection = 'makeChoice';
+        choiceSet.arc_glow.visible = false;
+        choiceSet.arc.visible = true;
+        startPoint.visible = false;
+        stage.update();
+        wp.tChoiceStarted = getTime();  // start choice timer
+    }
+
+
+    function setup_tooSlow(){
+        wp.trialSection==='tooSlow';
+        msgs.tooSlow.visible = true;
+        wp.tTooSlow = getTime();
+    }
+
+
+    //// functions for setting up a trial
+    function setup_nextTrial(){
+        // increment tp.itrial and setup the next trial
+        tp.itrial += 1;
+        console.log('itrial ' + tp.itrial.toString());
+        setup_trial(tp.itrial, EP, QUEUES, STYLE.choiceSet);
+    }
+
+
+    function setup_trial(itrial, ep, queues, stylecs){
+        // set up things for trial itrial
+        tp = set_itrialParams(itrial, queues);
+        update_choiceSet(tp.pxStart, tp.pyStart, tp.pradArc,
+                         tp.minthetaArc, tp.maxthetaArc, stylecs);
+        // update feedback
+        unstageArray(obs_array);
+        // show scores from last NLASTTOSHOW trials
+        obs_array = make_vis_obs_array(drill_history, tp.mindegArc,
+            function(elt){return nlast(elt, itrial-1, ep.NLASTTOSHOW)},
+            STYLE.scalar_obs);
+        stageArray(obs_array);
+        setup_goToStart();
+    }
+
+
+    function set_itrialParams(itrial, queues){
+        // extract trial params for itrial itrial from the queues in queues
+        var tp = {};  // init trial params
+
+        // get values in abstract space
+        // angle on arc where get max points.  assumes deg(mindegArc) = 0
+        tp.degOpt = queues.DEGOPT[itrial];
+        tp.xStart = queues.XSTART[itrial];
+        tp.yStart = queues.YSTART[itrial];
+        tp.radwrtxArc = queues.RADWRTXARC[itrial];
+        tp.mindegArc = mod(queues.MINDEGARC[itrial], 360.);
+        tp.maxdegArc = mod(queues.MAXDEGARC[itrial], 360.);
+        tp.rangedegArc = tp.maxdegArc - tp.mindegArc;
+        // convert what's needed to pixel space
+        tp.pradArc = tp.radwrtxArc * W;
+        tp.pxStart = tp.xStart * W;
+        tp.pyStart = tp.yStart * H;
+        // convert to theta for arcs
+        tp.minthetaArc = degToRad(tp.mindegArc);
+        tp.maxthetaArc = degToRad(tp.maxdegArc);
+
+        tp.itrial = itrial;
+
+        return tp;
+    }
+
+
+    function update_choiceSet(pxStart, pyStart, pradArc,
+                              minthetaArc, maxthetaArc, stylecs){
+        // update the graphics of choiceSet wrt incoming args
+        // negatives come from >0 being down screen.  huge PITA
+        choiceSet.arc.graphics.clear();
+        choiceSet.arc_glow.graphics.clear();
+        choiceSet.arc.graphics.s(stylecs.arc.strokeColor).
+                               ss(stylecs.arc.strokeSize, 0, 0).
+                               arc(pxStart, pyStart, pradArc,
+                                   -minthetaArc, -maxthetaArc, true);
+
+
+        choiceSet.arc_glow.graphics.s(stylecs.arc_glow.strokeColor).
+                                ss(stylecs.arc_glow.strokeSize, 0, 0).
+                                arc(pxStart, pyStart, pradArc,
+                                    -minthetaArc, -maxthetaArc, true);
+    }
+
+
+    //// functions for saving and tearing down a trial
+    function choice_made(pxDrill, pyDrill){
+        // what happens after a choice is made
+        console.log('choice_made called');
+        store_thisTrial(pxDrill, pyDrill, setup_nextTrial);
+    }
+
+
+    function store_thisTrial(pxDrill, pyDrill, callback){
+        // store things from this trial and then run callback
+        tsub.pxDrill = pxDrill;
+        tsub.pyDrill = pyDrill;
+        tsub.degDrill = pToDegDrill(pxDrill, pyDrill, tp.pxStart, tp.pyStart);
+        tsub.signederror = get_signederror(tsub.degDrill, tp.degOpt, tp.mindegArc);
+        tsub.fDrill = errorToPoints(Math.abs(tsub.signederror), EP.RANGEDEG); // get the reward
+        tsub.expScore += tsub.fDrill;
+        tsub.choiceRT = getTime() - wp.tChoiceStarted;
+        drill_history.push({'px': tsub.pxDrill,
+                            'py': tsub.pyDrill,
+                            'mindegArc': tp.mindegArc,
+                            'f': tsub.fDrill,
+                            'itrial': tp.itrial});
+        jsb_recordTurkData([EP, tp, tsub], callback);
+    }
+
+
+    //////// GAME OBJECTS AND OBJECT CONSTRUCTORS
+    function make_messages(stylemsgs){
+        var msgs = {};
+        msgs.tooSlow = new createjs.Text();
+        msgs.tooSlow.text('TOO SLOW');
+
+        return msgs;
+    }
+
+
+    function make_background(stylebg, canvasH, canvasW){
         var background_objs = [];
         var groundLineY = canvasH - canvasH*0.5;
         var groundLineToBottom = canvasH - groundLineY;
         var ground = new createjs.Shape();
-        ground.graphics.s(style.bg.ground.strokeColor).
-                        f(style.bg.ground.fillColor).
-                        ss(style.bg.ground.strokeSize, 0, 0).
+        ground.graphics.s(stylebg.ground.strokeColor).
+                        f(stylebg.ground.fillColor).
+                        ss(stylebg.ground.strokeSize, 0, 0).
                         r(0, groundLineY, canvasW, groundLineToBottom);
         ground.visible = true;
 
         // sky Graphics
         var sky = new createjs.Shape();
-        sky.graphics.s(style.bg.sky.strokeColor).
-                        f(style.bg.sky.fillColor).
-                        ss(style.bg.sky.strokeSize, 0, 0).
+        sky.graphics.s(stylebg.sky.strokeColor).
+                        f(stylebg.sky.fillColor).
+                        ss(stylebg.sky.strokeSize, 0, 0).
                         r(0, 0, W, groundLineY);
         sky.visible = true;
 
@@ -80,57 +280,28 @@ var rotationGame = function(){
     }
 
 
-    var startPoint;
-    function make_startPoint(style){
+    function make_startPoint(pxStart, pyStart, stylesp){
         var startPoint_objs = {};
         // startPoint graphics
         var startPoint = new createjs.Shape();
-        startPoint.graphics.s(style.startPoint.strokeColor).
-                        f(style.startPoint.fillColor).
-                        ss(style.startPoint.strokeSize, 0, 0).
-                        dc(pxStart, pyStart, style.startPoint.radius);
+        startPoint.graphics.s(stylesp.strokeColor).
+                        f(stylesp.fillColor).
+                        ss(stylesp.strokeSize, 0, 0).
+                        dc(pxStart, pyStart, stylesp.radius);
         startPoint.visible = true;
         // startPoint Actions
-        startPoint.addEventListener('tick', function(){
-            pxMouse = stage.mouseX;
-            pyMouse = stage.mouseY;
-            if(trialSection==='goToStart'){
-                // check if in startPoint
-                var inStartPoint = withinRad(pxMouse, pyMouse, pxStart, pyStart,
-                                             style.startPoint.radius);
-                if(inStartPoint){
-                    timeInStart += 1;
-                    console.log(timeInStart);
-                    stage.update();
-                        // check if there long enough
-                    if(timeInStart > FRMINTIMEINSTART){
-                        trialSection = 'makeChoice';
-                        startPoint.visible = false;
-                        choiceSet.arc.visible = true;
-                    }
-                    else {
-                        timeInStart = 0;
-                    } // end if(timeInStart > FRMINTIMEINSTART)
-                }  // end if(inStartPoint)
+        startPoint.addEventListener('mouseover', function(){
+            if(wp.trialSection==='goToStart'){
+                wp.tInStart = getTime();
             }  // end trialSection==='goToStart'
 
-            // TODO: this is if you want times reaches
-            // else if(trialSection==='inStartPoint'){
-            //     // see if moving fast enough
-            //     var mouseSpeed = get_mouseSpeed(pxMouse, pyMouse,
-            //                                     prev_pxMouse, prev_pyMouse);
-            //     if(mouseSpeed > MINMOUSEMOVESPEED){
-            //         trialSection = 'moving';
-            //     }
-        });  // end startPoint.addEventListener('tick')
+        });
         startPoint_objs.startPoint = startPoint;
-
         return startPoint_objs;
     }
 
 
-    var choiceSet;
-    function make_choiceSet(style){
+    function make_choiceSet(){
         var choiceSet = {};
 
         var choiceArc = new createjs.Shape();
@@ -139,7 +310,6 @@ var rotationGame = function(){
 
         // choiceArc Actions
         choiceArc.addEventListener('mouseover', function(){
-            console.log('choiceArc mouseover was called');
             choiceArc_glow.visible = true;
             stage.update();
         });
@@ -150,19 +320,10 @@ var rotationGame = function(){
         });
 
         choiceArc.addEventListener('click', function(){
-            if(trialSection==='inStart'){
-                pxDrill = stage.mouseX;
-                pyDrill = stage.mouseY;
+            if(wp.trialSection==='makeChoice'){
+                var pxDrill = stage.mouseX;
+                var pyDrill = stage.mouseY;
                 choice_made(pxDrill, pyDrill);
-            }
-        });
-
-        choiceArc.addEventListener('tick', function(){
-            if(trialSection==='makeChoice'){
-                timeToChoice += 1;
-                if(timeToChoice > MAXTIMETOCHOICE){
-                    trialSection = 'tooSlow';
-                }
             }
         });
 
@@ -172,204 +333,7 @@ var rotationGame = function(){
     }
 
 
-
-    function get_dist(p1, p2){
-        return Math.sqrt(Math.pow(p1[0]-p2[0], 2.) +
-                        Math.pow(p1[1]-p2[1], 2.));
-    }
-
-    function withinRad(x, y, xOrigin, yOrigin, rad){
-        return get_dist([x, y], [xOrigin, yOrigin]) < rad;
-    }
-
-
-    function radToDeg(theta){
-        return mod(theta * (180./Math.PI), 360.);
-    }
-
-
-    function degToRad(deg){
-        return mod(deg, 360.) * (Math.PI/180.);
-    }
-
-
-
-
-    //////// GAME LOGIC
-    var trialSection, timeInStart, timeMoving;
-    var MSMINTIMEINSTART, MSMAXTIMETOCHOICE, FRMINTIMEINSTART;
-    var NLASTTOSHOW;
-    var DEGMIN, DEGMAX, DEGRANGE;
-    var NTRIAL
-    var drill_history, xDrill, pxDrill, pyDrill, fDrill, degDrill;
-    var obs_array;
-    var signederror
-    var expScore, trialScore, INITSCORE;
-    var itrial;
-    var DEGOPTQUEUE, degOpt;
-    var RNGSEED;
-    var XSTARTQUEUE, YSTARTQUEUE, xStart, yStart, pxStart, pyStart;
-    var RADWRTXARCQUEUE, radwrtxArc, pradArc;  // radius from startpoint to choice arc
-    var MINDEGARCQUEUE, MAXDEGARCQUEUE, mindegArc, maxdegArc, rangedegArc;
-    var minthetaArc, maxthetaArc;
-    var pxMouse, pyMouse;
-
-
-    function set_itrialParams(){
-        // get values in abstract space
-        // angle on arc where get max points.  assumes deg(mindegArc) = 0
-        degOpt = DEGOPTQUEUE[itrial];
-        xStart = XSTARTQUEUE[itrial];
-        yStart = YSTARTQUEUE[itrial];
-        radwrtxArc = RADWRTXARCQUEUE[itrial];
-        mindegArc = mod(MINDEGARCQUEUE[itrial], 360.);
-        maxdegArc = mod(MAXDEGARCQUEUE[itrial], 360.);
-        rangedegArc = maxdegArc - mindegArc;
-        // convert what's needed to pixel space
-        pradArc = radwrtxArc * W;
-        pxStart = xStart * W;
-        pyStart = yStart * H;
-        // convert to theta for arcs
-        minthetaArc = degToRad(mindegArc);
-        maxthetaArc = degToRad(maxdegArc);
-    }
-
-
-    function normalize(a, tobounds, frombounds){
-        // takes aa, which lives in interval frombounds, and maps to interval tobounds
-        // default tobounds = [0,1]
-        tobounds = typeof tobounds !== 'undefined' ? tobounds : [0., 1.];
-        // default frombounds are the min and max of a
-        frombounds = typeof frombounds !== 'undefined' ? frombounds : [min(a), max(a)];
-
-        var fromlo = frombounds[0];
-        var fromhi = frombounds[1];
-        var tolo = tobounds[0];
-        var tohi = tobounds[1];
-        var fromrange = fromhi-fromlo;
-        var torange = tohi-tolo;
-
-        a = a.map(function(elt){return elt-fromlo;});
-        a = a.map(function(elt){return elt/fromrange;}); // now in 0, 1
-        a = a.map(function(elt){return elt*torange});
-        a = a.map(function(elt){return elt+tolo});
-
-        return a;
-    }
-
-
-    function update_choiceSet(){
-        // negatives come from >0 being down screen.  huge PITA
-        choiceSet.arc.graphics.clear();
-        choiceSet.arc_glow.graphics.clear();
-        choiceSet.arc.graphics.s(STYLE.choiceSet.arc.strokeColor).
-                               ss(STYLE.choiceSet.arc.strokeSize, 0, 0).
-                               arc(pxStart, pyStart, pradArc,
-                                   -minthetaArc, -maxthetaArc, true);
-
-
-        choiceSet.arc_glow.graphics.s(STYLE.choiceSet.arc_glow.strokeColor).
-                                ss(STYLE.choiceSet.arc_glow.strokeSize, 0, 0).
-                                arc(pxStart, pyStart, pradArc,
-                                    -minthetaArc, -maxthetaArc, true);
-    }
-
-
-    function choice_made(pxDrill, pyDrill){
-        store_thisTrial(pxDrill, pyDrill, function(){
-            itrial += 1;
-            setup_nextTrial();
-        });
-    }
-
-
-    function store_thisTrial(pxDrill, pyDrill, callback){
-        // store things from this trial
-        degDrill = pToDegDrill(pxDrill, pyDrill, pxStart, pyStart);
-        signederror = get_signederror(degDrill, degOpt);
-        fDrill = errorToPoints(Math.abs(signederror)); // get the reward
-        expScore += fDrill;
-        drill_history.push({'px': pxDrill,
-                            'py': pyDrill,
-                            'mindegArc': mindegArc,
-                            'f': fDrill,
-                            'itrial': itrial});
-        callback();
-    }
-
-
-    function setup_nextTrial(){
-        // set up things for the next trial
-        set_itrialParams();
-        update_choiceSet();
-        // update feedback
-        unstageArray(obs_array);
-        // show scores from last NLASTTOSHOW trials
-        NLASTTOSHOW = 2;
-        obs_array = make_vis_obs_array(drill_history, mindegArc,
-            function(elt){return nlast(elt, itrial, NLASTTOSHOW)});
-        stageArray(obs_array);
-        startPoint.visible = true;
-        trialSection = 'goToStart';
-    }
-
-
-
-
-
-    customRoute('init_experiment',  // call init_experiment in custom.py...
-                {'condition': condition,  // w params condition adn counter...
-                 'counterbalance': counterbalance},
-                 function(resp){  // once to get back resp from custom.py...
-                    RNGSEED = resp['rngseed'];
-                    itrial = resp['inititrial'];
-                    INITSCORE = resp['initscore'];
-                    DEGMIN = resp['mindomain'];
-                    DEGMAX = resp['maxdomain'];
-                    DEGRANGE = DEGMAX - DEGMIN;
-                    XSTARTQUEUE = resp['xoriginqueue'];
-                    YSTARTQUEUE = resp['yoriginqueue'];
-                    RADWRTXARCQUEUE = resp['radwrtxarcqueue'];
-                    MINDEGARCQUEUE = resp['mindegarcqueue'];
-                    MAXDEGARCQUEUE = resp['maxdegarcqueue'];
-                    DEGOPTQUEUE = resp['degoptqueue'];  // which location gets 100% points?
-                    NLASTTOSHOW = resp['nlasttoshow'];
-                    MSMINTIMEINSTART = resp['msmintimeinstart'];
-                    MSMAXTIMETOCHOICE = resp['msmaxtimetochoice'];
-
-                    FRMINTIMEINSTART = MSMINTIMEINSTART * (1./CHECKMOUSEFREQ);
-
-                    set_itrialParams();
-
-                    NTRIAL = DEGOPTQUEUE.length;
-
-                    expScore = INITSCORE;
-
-                    obs_array = [];
-                    drill_history = [];
-
-                    background = make_background(STYLE, H, W);
-                    startPoint = make_startPoint(STYLE);
-                    choiceSet = make_choiceSet(STYLE);
-
-                    update_choiceSet();
-
-                    stageObject(background);
-                    stageObject(startPoint);
-                    choiceSet.arc_glow.visible = false;
-                    choiceSet.arc.visible = true;
-                    stage.addChild(choiceSet.arc_glow);
-                    stage.addChild(choiceSet.arc);
-
-                    // add all objects to the stage
-                    stage.update();
-
-                    trialSection = 'goToStart';
-
-                    console.log('init_experiment was called')
-                });
-
-
+    ////////////  HELPERS  ////////////
     function pToDegDrill(pxDrill, pyDrill, pxStart, pyStart){
         // ALWAYS ASSUMES mindegArc IS 0!!!!!
         // * pyDrill-pyStart is negative b.c. >y is lower in pixel space
@@ -379,61 +343,12 @@ var rotationGame = function(){
     }
 
 
-    function get_signederror(degDrill, degOpt){
+    function get_signederror(degDrill, degOpt, mindegArc){
         var ccwerr = degDrill - mod(degOpt + mindegArc, 360.);  // e.g. 270-0 = 270
         var cwerr = degDrill-360. - mod(degOpt + mindegArc, 360.);  // e.g. -90-0 = -90 (correct)
         var signederror = Math.abs(ccwerr) < Math.abs(cwerr) ? ccwerr : cwerr;
         return signederror;
     }
-
-
-    function nextTrial(pxDrill, pyDrill){
-        jsb_recordTurkData(function(){
-            // if have more trials to go...
-            console.log('trial '+itrial.toString()+' saved successfully.');
-            itrial += 1;  // move to next trial
-            if (itrial < NTRIAL){  // if more trials to go...
-
-                // store things from this trial
-                degDrill = pToDegDrill(pxDrill, pyDrill, pxStart, pyStart);
-                signederror = get_signederror(degDrill, degOpt);
-                fDrill = errorToPoints(Math.abs(signederror)); // get the reward
-                expScore += fDrill;
-                drill_history.push({'px': pxDrill,
-                                    'py': pyDrill,
-                                    'degDrill': degDrill,
-                                    'mindegArc': mindegArc,
-                                    'f': fDrill,
-                                    'itrial': itrial});
-
-                // set up things for the next trial
-                set_itrialParams();
-                update_choiceSet();
-                // update feedback
-                unstageArray(obs_array);
-                // show scores from last NLASTTOSHOW trials
-                NLASTTOSHOW = 2;
-                obs_array = make_vis_obs_array(drill_history,
-                    function(elt){return nlast(elt, itrial, NLASTTOSHOW)});
-                stageArray(obs_array);
-            }
-            else {
-                // endgame goes here
-                experimentSection = 'expSummary';
-                // show total feedback
-                trialSummary_text.text = 'You played ' +
-                    NTRIAL.toString() +
-                    ' trials\n\n and earned ' +
-                    monify(expScore) +
-                    '\n\n' +
-                    'Please click the button to finish.';
-
-                trialSummary_text.visible = true;
-                button.visible = true; // enable click-to-leave
-                button_text.visible = false;
-            }  // end if <NTRIAL
-        });  // end jsb_recordTurkData
-    } // end nextTrial
 
 
 //// HELPER FUNCTIONS
@@ -444,7 +359,7 @@ var rotationGame = function(){
     }
 
 
-    function make_vis_obs_array(drill_history, mindegArc, critfcn) {
+    function make_vis_obs_array(drill_history, mindegArc, critfcn, styleso) {
         // takes drill_history, filters by crit, returns array of ScalarObs
         var to_show = drill_history.filter(critfcn);  // filter to only shown
         // rotate to match choiceArc's rotation for this trial
@@ -453,17 +368,17 @@ var rotationGame = function(){
                                   return elt;});
         // make obs for all valid sams in drill_history
         var obs_array = to_show.map(
-            function(elt){return ScalarObs(elt.px, elt.py, elt.f)}
+            function(elt){return ScalarObs(elt.px, elt.py, elt.f, styleso)}
         );
         return obs_array;
     }
 
 
-    function ScalarObs(x, y, val){
+    function ScalarObs(x, y, val, styleso){
         // val to be placed at drill location
         var obs = new createjs.Text('',
-                                    STYLE.scalar_obs.TEXTSTYLE,
-                                    STYLE.scalar_obs.COLOR);
+                                    styleso.textstyle,
+                                    styleso.color);
         obs.x = x;
         obs.y = y;
         obs.text = val.toString();
@@ -511,8 +426,8 @@ var rotationGame = function(){
     }
 
 
-    function errorToPoints(unsignederror) {
-        return Math.round((1 - (unsignederror/DEGRANGE)) * 100);
+    function errorToPoints(unsignederror, degrange) {
+        return Math.round((1 - (unsignederror/degrange)) * 100);
     }
 
 
@@ -542,22 +457,137 @@ var rotationGame = function(){
     }
 
 
-    function jsb_recordTurkData(callback){
-        psiTurk.recordTrialData({
-            'trial': itrial,
-            'mindomain': DEGMIN,
-            'maxdomain': DEGMAX,
-            'expScore': expScore,
-            'degOpt': degOpt,
-            'degDrill': degDrill,
-            'signederror': signederror,
-            'fDrill': fDrill,
-            'pxDrill': pxDrill,
-            'RNGSEED': RNGSEED,
-            'condition': condition,
-            'counterbalance': counterbalance
+    function getTime(){
+        return new Date().getTime();
+    }
+
+
+    function normalize(a, tobounds, frombounds){
+        // takes aa, which lives in interval frombounds, and maps to interval tobounds
+        // default tobounds = [0,1]
+        tobounds = typeof tobounds !== 'undefined' ? tobounds : [0., 1.];
+        // default frombounds are the min and max of a
+        frombounds = typeof frombounds !== 'undefined' ? frombounds : [min(a), max(a)];
+
+        var fromlo = frombounds[0];
+        var fromhi = frombounds[1];
+        var tolo = tobounds[0];
+        var tohi = tobounds[1];
+        var fromrange = fromhi-fromlo;
+        var torange = tohi-tolo;
+
+        a = a.map(function(elt){return elt-fromlo;});
+        a = a.map(function(elt){return elt/fromrange;}); // now in 0, 1
+        a = a.map(function(elt){return elt*torange});
+        a = a.map(function(elt){return elt+tolo});
+
+        return a;
+    }
+
+
+    function get_dist(p1, p2){
+        return Math.sqrt(Math.pow(p1[0]-p2[0], 2.) +
+                         Math.pow(p1[1]-p2[1], 2.));
+    }
+
+    function withinRad(x, y, xOrigin, yOrigin, rad){
+        return get_dist([x, y], [xOrigin, yOrigin]) < rad;
+    }
+
+
+    function radToDeg(theta){
+        return mod(theta * (180./Math.PI), 360.);
+    }
+
+
+    function degToRad(deg){
+        return mod(deg, 360.) * (Math.PI/180.);
+    }
+
+
+    // use instead of % b.c. javascript can't do negative mod
+    function mod(a, b){return ((a%b)+b)%b;}
+
+
+    function jsb_recordTurkData(loObj, callback){
+        var toSave = {};
+        loObj.map(function(obj){
+            for(var field in obj){
+                toSave[field] = obj[field];
+            }
         });
+
+        psiTurk.recordTrialData(toSave);
+
+        // psiTurk.recordTrialData({
+        //     'trial': itrial,
+        //     'mindomain': DEGMIN,
+        //     'maxdomain': DEGMAX,
+        //     'expScore': expScore,
+        //     'degOpt': degOpt,
+        //     'degDrill': degDrill,
+        //     'signederror': signederror,
+        //     'fDrill': fDrill,
+        //     'pxDrill': pxDrill,
+        //     'RNGSEED': RNGSEED,
+        //     'condition': condition,
+        //     'counterbalance': counterbalance
+        // });
         psiTurk.saveData();
         callback();
     }
+
+
+    //////// STYLE SHEETS FOR THE GAME
+    var STYLE = [];
+    STYLE.background = [];
+    STYLE.background.ground = [];
+    STYLE.background.ground.strokeSize = 5;
+    STYLE.background.ground.strokeColor = '#A0522D';
+    STYLE.background.ground.fillColor = '#A0522D';
+
+    STYLE.background.sky = [];
+    STYLE.background.sky.strokeSize = 5;
+    STYLE.background.sky.strokeColor = '#33CCCC';
+    STYLE.background.sky.fillColor = '#33CCCC';
+
+    STYLE.choiceSet = [];
+    STYLE.choiceSet.arc = [];
+    STYLE.choiceSet.arc.strokeColor = '#D9BAAB';
+    STYLE.choiceSet.arc.fillColor = null;
+    STYLE.choiceSet.arc.strokeSize = 10;
+
+    STYLE.choiceSet.arc_glow = [];
+    STYLE.choiceSet.arc_glow.strokeColor = '#EACDDC';
+    STYLE.choiceSet.arc_glow.strokeSize = 15;
+
+    STYLE.scalar_obs = [];
+    STYLE.scalar_obs.textstyle = '2em Helvetica';
+    STYLE.scalar_obs.color = 'white';
+
+    STYLE.startPoint = [];
+    STYLE.startPoint.strokeColor = '#D9BAAB';
+    STYLE.startPoint.fillColor = '#D9BAAB';
+    STYLE.startPoint.strokeSize = 2;
+    STYLE.startPoint.radius = 20;
+
+    //////// GAME LOGIC
+    // var trialSection, timeInStart, timeMoving;
+    // var MSMINTIMEINSTART, MSMAXTIMETOCHOICE;
+    // var NLASTTOSHOW;
+    // var DEGMIN, DEGMAX, DEGRANGE;
+    // var NTRIAL
+    // var drill_history, xDrill, pxDrill, pyDrill, fDrill, degDrill;
+    // var obs_array;
+    // var signederror
+    // var expScore, trialScore, INITSCORE;
+    // var itrial;
+    // var DEGOPTQUEUE, degOpt;
+    // var RNGSEED;
+    // var XSTARTQUEUE, YSTARTQUEUE, xStart, yStart, pxStart, pyStart;
+    // var RADWRTXARCQUEUE, radwrtxArc, pradArc;  // radius from startpoint to choice arc
+    // var MINDEGARCQUEUE, MAXDEGARCQUEUE, mindegArc, maxdegArc, rangedegArc;
+    // var minthetaArc, maxthetaArc;
+    // var pxMouse, pyMouse;
+    // var tInStart, tChoiceStarted;
 };

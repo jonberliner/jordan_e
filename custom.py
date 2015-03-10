@@ -61,8 +61,8 @@ def init_experiment():
                1487903826, 3534352433, 2793970570, 3696596236, 3057302268,
                2924494158, 1308408238, 2181850436, 2485685726, 1958873721])
 
-    MINDOMAIN = 0.
-    MAXDOMAIN = 180.
+    MINDEG = 0.  # minumum degree of choiceSet
+    MAXDEG = 180.  # max degree of choiceSet
 
     ROTMAGPOOL = npa([15., 30., 45., 60.])  # proxy for 15, 30, 45, 60 degree rots
 
@@ -90,7 +90,7 @@ def init_experiment():
     YORIGIN = 0.5  # y startpoint as percentage of window height
 
     experParams = {# needed for make_mixed_xOptQueue
-                   'domainbounds': [MINDOMAIN, MAXDOMAIN],
+                   'domainbounds': [MINDEG, MAXDEG],
                    'rotmag': ROTMAG,
                    'nPerXOpt': NPERXOPT,
                    'radwrtxArc': RADWRTXARC,
@@ -114,12 +114,13 @@ def init_experiment():
 
     # add experiment params used on client side
     NLASTTOSHOW = 2  # number of prev scores to show on arc
-    MSMINTIMEINSTART = 500  # ms to spend in startpoint before choice
-    MSMAXTIMETOCHOICE = 2000
+    MSMINTIMEINSTART = 1000  # ms to spend in startpoint before choice
+    MSMAXTIMETOCHOICE = None
 
     experParams['nlasttoshow'] = NLASTTOSHOW
     experParams['msmintimeinstart'] = MSMINTIMEINSTART
     experParams['msmaxtimetochoice'] = MSMAXTIMETOCHOICE
+    experParams['ntrial'] = NTRIAL
 
     # bundle response to send
     resp = {}
@@ -141,7 +142,7 @@ def init_experiment():
     resp['rotmag'] = ROTMAG
     resp['rngseed'] = RNGSEED
     resp['initscore'] = 0  # start w 0 points
-    resp['mindomain'] = MINDOMAIN
-    resp['maxdomain'] = MAXDOMAIN
+    resp['mindeg'] = MINDEG
+    resp['maxdeg'] = MAXDEG
 
     return jsonify(**resp)
