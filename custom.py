@@ -116,10 +116,18 @@ def init_experiment():
     NLASTTOSHOW = 2  # number of prev scores to show on arc
     MSMINTIMEINSTART = 500  # ms to spend in startpoint before choice
     MSMAXTIMETOCHOICE = None
+<<<<<<< dev
+=======
+    MSSHOWFEEDBACK = 2000
+>>>>>>> local
 
     experParams['nlasttoshow'] = NLASTTOSHOW
     experParams['msmintimeinstart'] = MSMINTIMEINSTART
     experParams['msmaxtimetochoice'] = MSMAXTIMETOCHOICE
+<<<<<<< dev
+=======
+    experParams['msshowfeedback'] = MSSHOWFEEDBACK
+>>>>>>> local
     experParams['ntrial'] = NTRIAL
 
     # bundle response to send
