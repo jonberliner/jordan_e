@@ -50,6 +50,7 @@ var rotationGame = function(){
                     if(EP.MSMAXTIMETOCHOICE==='None'){
                         EP.MSMAXTIMETOCHOICE = null;
                     }
+                    EP.MSSHOWFEEDBACK = resp['msshowfeedback'];
 
                     tp.itrial = resp['inititrial'];
                     tp = set_itrialParams(tp.itrial, QUEUES);
@@ -105,6 +106,12 @@ var rotationGame = function(){
                 }
             }
         }  // end makeChoice
+        else if (wp.trialSection==='showFeedback'){
+            var tNow = getTime();
+            if(tNow - wp.tFeedbackOn > EP.MSSHOWFEEDBACK){
+                setup_nextTrial();
+            }
+        }
         else if (wp.trialSection==='tooSlow'){
             var tNow = getTime();
             if(tNow - wp.tTooSlow > EP.MSTOOSLOW){
@@ -136,6 +143,12 @@ var rotationGame = function(){
         startPoint.visible = false;
         stage.update();
         wp.tChoiceStarted = getTime();  // start choice timer
+    }
+
+
+    function setup_showFeedback(){
+        wp.trialSection = 'showFeedback';
+        wp.tFeedbackOn = getTime();
     }
 
 
@@ -221,7 +234,7 @@ var rotationGame = function(){
     function choice_made(pxDrill, pyDrill){
         // what happens after a choice is made
         console.log('choice_made called');
-        store_thisTrial(pxDrill, pyDrill, setup_nextTrial);
+        store_thisTrial(pxDrill, pyDrill, setup_showFeedback);
     }
 
 
@@ -526,29 +539,14 @@ var rotationGame = function(){
 
     function jsb_recordTurkData(loObj, callback){
         var toSave = {};
-        loObj.map(function(obj){
+        loObj.map(function(obj){  // for every obj in loObj...
             for(var field in obj){
-                toSave[field] = obj[field];
+                toSave[field] = obj[field];  // add to dict toSave
             }
         });
 
-        psiTurk.recordTrialData(toSave);
-
-        // psiTurk.recordTrialData({
-        //     'trial': itrial,
-        //     'mindomain': DEGMIN,
-        //     'maxdomain': DEGMAX,
-        //     'expScore': expScore,
-        //     'degOpt': degOpt,
-        //     'degDrill': degDrill,
-        //     'signederror': signederror,
-        //     'fDrill': fDrill,
-        //     'pxDrill': pxDrill,
-        //     'RNGSEED': RNGSEED,
-        //     'condition': condition,
-        //     'counterbalance': counterbalance
-        // });
-        psiTurk.saveData();
+        psiTurk.recordTrialData(toSave);  // store on client side
+        psiTurk.saveData();  // save to server side
         callback();
     }
 
@@ -585,24 +583,4 @@ var rotationGame = function(){
     STYLE.startPoint.fillColor = '#D9BAAB';
     STYLE.startPoint.strokeSize = 2;
     STYLE.startPoint.radius = 20;
-
-    //////// GAME LOGIC
-    // var trialSection, timeInStart, timeMoving;
-    // var MSMINTIMEINSTART, MSMAXTIMETOCHOICE;
-    // var NLASTTOSHOW;
-    // var DEGMIN, DEGMAX, DEGRANGE;
-    // var NTRIAL
-    // var drill_history, xDrill, pxDrill, pyDrill, fDrill, degDrill;
-    // var obs_array;
-    // var signederror
-    // var expScore, trialScore, INITSCORE;
-    // var itrial;
-    // var DEGOPTQUEUE, degOpt;
-    // var RNGSEED;
-    // var XSTARTQUEUE, YSTARTQUEUE, xStart, yStart, pxStart, pyStart;
-    // var RADWRTXARCQUEUE, radwrtxArc, pradArc;  // radius from startpoint to choice arc
-    // var MINDEGARCQUEUE, MAXDEGARCQUEUE, mindegArc, maxdegArc, rangedegArc;
-    // var minthetaArc, maxthetaArc;
-    // var pxMouse, pyMouse;
-    // var tInStart, tChoiceStarted;
 };
