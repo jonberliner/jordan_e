@@ -114,7 +114,7 @@ def init_experiment():
 
     # add experiment params used on client side
     NLASTTOSHOW = 2  # number of prev scores to show on arc
-    MSMINTIMEINSTART = 1000  # ms to spend in startpoint before choice
+    MSMINTIMEINSTART = 500  # ms to spend in startpoint before choice
     MSMAXTIMETOCHOICE = None
 
     experParams['nlasttoshow'] = NLASTTOSHOW

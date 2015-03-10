@@ -236,6 +236,7 @@ var rotationGame = function(){
         tsub.choiceRT = getTime() - wp.tChoiceStarted;
         drill_history.push({'px': tsub.pxDrill,
                             'py': tsub.pyDrill,
+                            'degDrill': tsub.degDrill,
                             'mindegArc': tp.mindegArc,
                             'f': tsub.fDrill,
                             'itrial': tp.itrial});
@@ -342,6 +343,16 @@ var rotationGame = function(){
         return deg;
     }
 
+    function degDrillToP(degDrill, prad, pxStart, pyStart){
+        // ALWAYS ASSUMES mindegArc IS 0!!!!!
+        var theta = degToRad(degDrill);
+        var px = prad * Math.cos(theta);
+        var py = - (prad * Math.sin(theta));  // negative b.c of reflection in pixel space
+        px += pxStart;
+        py += pyStart;
+        return {'x': px, 'y': py};
+    }
+
 
     function get_signederror(degDrill, degOpt, mindegArc){
         var ccwerr = degDrill - mod(degOpt + mindegArc, 360.);  // e.g. 270-0 = 270
@@ -364,7 +375,11 @@ var rotationGame = function(){
         var to_show = drill_history.filter(critfcn);  // filter to only shown
         // rotate to match choiceArc's rotation for this trial
         to_show = to_show.map(function(elt){
-                                  elt.degDrill += mindegArc - elt.mindegArc;
+                                  var rot_degDrill = mod(elt.degDrill - elt.mindegArc + mindegArc, 360.);
+                                  var pposn = degDrillToP(rot_degDrill, tp.pradArc,
+                                                          tp.pxStart, tp.pyStart);
+                                  elt.px = pposn.x;
+                                  elt.py = pposn.y;
                                   return elt;});
         // make obs for all valid sams in drill_history
         var obs_array = to_show.map(
