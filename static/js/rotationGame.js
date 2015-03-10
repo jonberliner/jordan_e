@@ -104,16 +104,13 @@ var rotationGame = function(){
                     setup_tooSlow();
                 }
             }
-<<<<<<< dev
-=======
+        } // end makeChoice
         else if (wp.trialSection==='showFeedback'){
             var tNow = getTime();
             if(tNow - wp.tFeedbackOn > EP.MSSHOWFEEDBACK){
                 setup_nextTrial;
             }
-        }
->>>>>>> local
-        }  // end makeChoice
+        }  // end showFeedback
         else if (wp.trialSection==='tooSlow'){
             var tNow = getTime();
             if(tNow - wp.tTooSlow > EP.MSTOOSLOW){
@@ -135,19 +132,6 @@ var rotationGame = function(){
         startPoint.startPoint.visible = true;
         stage.update();
     }
-<<<<<<< dev
-
-
-    function setup_makeChoice(){
-        // what happens when we move to 'makeChoice' section of a trial
-        wp.trialSection = 'makeChoice';
-        choiceSet.arc_glow.visible = false;
-        choiceSet.arc.visible = true;
-        startPoint.visible = false;
-        stage.update();
-        wp.tChoiceStarted = getTime();  // start choice timer
-    }
-=======
 
 
     function setup_makeChoice(){
@@ -160,17 +144,24 @@ var rotationGame = function(){
         wp.tChoiceStarted = getTime();  // start choice timer
     }
 
->>>>>>> local
+
+    function setup_makeChoice(){
+        // what happens when we move to 'makeChoice' section of a trial
+        wp.trialSection = 'makeChoice';
+        choiceSet.arc_glow.visible = false;
+        choiceSet.arc.visible = true;
+        startPoint.visible = false;
+        stage.update();
+        wp.tChoiceStarted = getTime();  // start choice timer
+    }
+
 
     function setup_showFeedback(){
         wp.trialSection = 'showFeedback';
         wp.tFeedbackOn = getTime();
     }
 
-<<<<<<< dev
-=======
 
->>>>>>> local
     function setup_tooSlow(){
         wp.trialSection==='tooSlow';
         msgs.tooSlow.visible = true;
@@ -253,11 +244,7 @@ var rotationGame = function(){
     function choice_made(pxDrill, pyDrill){
         // what happens after a choice is made
         console.log('choice_made called');
-<<<<<<< dev
-        store_thisTrial(pxDrill, pyDrill, setup_nextTrial);
-=======
         store_thisTrial(pxDrill, pyDrill, setup_showFeedback);
->>>>>>> local
     }
 
 
@@ -350,8 +337,6 @@ var rotationGame = function(){
             choiceArc_glow.visible = true;
             stage.update();
         });
-<<<<<<< dev
-=======
 
         choiceArc.addEventListener('mouseout', function(){
             choiceArc_glow.visible = false;
@@ -370,7 +355,6 @@ var rotationGame = function(){
         choiceSet.arc_glow = choiceArc_glow;
         return choiceSet;
     }
->>>>>>> local
 
         choiceArc.addEventListener('mouseout', function(){
             choiceArc_glow.visible = false;
@@ -385,15 +369,11 @@ var rotationGame = function(){
             }
         });
 
-<<<<<<< dev
         choiceSet.arc = choiceArc;
         choiceSet.arc_glow = choiceArc_glow;
         return choiceSet;
     }
 
-
-=======
->>>>>>> local
     ////////////  HELPERS  ////////////
     function pToDegDrill(pxDrill, pyDrill, pxStart, pyStart){
         // ALWAYS ASSUMES mindegArc IS 0!!!!!
