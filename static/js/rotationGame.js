@@ -15,7 +15,7 @@ var rotationGame = function(){
     var MSTICK = 100;  // run checkOnTick every MSTICK ms
     createjs.Ticker.setInterval(MSTICK);
     createjs.Ticker.addEventListener("tick", function(event){
-        checkOnTick(event, tp, wp, EP, STYLE.startPoint.radius);
+        checkOnTick(event, tp, wp, EP, STYLE.startPoint.sp.radius);
     });
 
     //////// INITIATE GAME
@@ -24,7 +24,10 @@ var rotationGame = function(){
     var wp = {};  // params that can change within a trial
     var tsub = {}; // trial responses from subject that change trial by trial
     var obs_array, drill_history;  // used to show (possibly persistent) feedback
-    var background, startPoint, choiceSet; // containers that make up easeljs objects
+    // containers that make up easeljs objects - objects are for easily
+    // accessing shapes by name
+    var background, startPoint, choiceSet;
+    var a_background, a_startPoint, a_choiceSet; // arrays for ordered staging
     var QUEUES = {};  // queues containing trial params for each trial of experiment
     customRoute('init_experiment',  // call init_experiment in custom.py...
                 {'condition': condition,  // w params condition adn counter...
@@ -59,21 +62,19 @@ var rotationGame = function(){
                     obs_array = [];
                     drill_history = [];
 
-                    background = make_background(STYLE.background, H, W);
+                    background = make_background(STYLE.background, W, H);
+                    a_background = [background.background];
                     startPoint = make_startPoint(tp.pxStart, tp.pyStart, STYLE.startPoint);
+                    a_startPoint = [startPoint.sp_glow, startPoint.sp];
                     choiceSet = make_choiceSet();
+                    a_choiceSet = [choiceSet.arc_glow, choiceSet.arc];
 
                     update_choiceSet(tp.pxStart, tp.pyStart, tp.pradArc,
                                      tp.minthetaArc, tp.maxthetaArc, STYLE.choiceSet);
 
-                    stageObject(background);
-                    stageObject(startPoint);
-                    choiceSet.arc_glow.visible = false;
-                    choiceSet.arc.visible = true;
-                    stage.addChild(choiceSet.arc_glow);
-                    stage.addChild(choiceSet.arc);
-
-                    stage.update();
+                    stageArray(a_background);
+                    stageArray(a_startPoint);
+                    stageArray(a_choiceSet);
 
                     // let's get it started!
                     setup_goToStart();
@@ -130,7 +131,8 @@ var rotationGame = function(){
         wp.trialSection = 'goToStart';
         choiceSet.arc.visible = false;
         choiceSet.arc_glow.visible = false;
-        startPoint.startPoint.visible = true;
+        startPoint.sp.visible = true;
+        startPoint.sp_glow.visible = false;
         stage.update();
     }
 
@@ -140,7 +142,8 @@ var rotationGame = function(){
         wp.trialSection = 'makeChoice';
         choiceSet.arc_glow.visible = false;
         choiceSet.arc.visible = true;
-        startPoint.visible = false;
+        startPoint.sp.visible = false;
+        startPoint.sp_glow.visible = false;
         stage.update();
         wp.tChoiceStarted = getTime();  // start choice timer
     }
@@ -149,6 +152,13 @@ var rotationGame = function(){
     function setup_showFeedback(){
         wp.trialSection = 'showFeedback';
         wp.tFeedbackOn = getTime();
+        unstageArray(obs_array);
+        // show scores from last NLASTTOSHOW trials
+        obs_array = make_vis_obs_array(drill_history, tp.mindegArc,
+            function(elt){return nlast(elt, tp.itrial, EP.NLASTTOSHOW)},
+            STYLE.scalar_obs);
+        stageArray(obs_array);
+        stage.update();
     }
 
 
@@ -222,9 +232,11 @@ var rotationGame = function(){
                                arc(pxStart, pyStart, pradArc,
                                    -minthetaArc, -maxthetaArc, true);
 
-
+        var arc_glow_size = stylecs.arc.strokeSize *
+                            stylecs.arc_glow.ratioGlowBigger;
+                        stylecs.arc_glow.ratioGlowBigger;
         choiceSet.arc_glow.graphics.s(stylecs.arc_glow.strokeColor).
-                                ss(stylecs.arc_glow.strokeSize, 0, 0).
+                                ss(arc_glow_size, 0, 0).
                                 arc(pxStart, pyStart, pradArc,
                                     -minthetaArc, -maxthetaArc, true);
     }
@@ -267,28 +279,16 @@ var rotationGame = function(){
     }
 
 
-    function make_background(stylebg, canvasH, canvasW){
+    function make_background(stylebg, canvasW, canvasH){
         var background_objs = [];
-        var groundLineY = canvasH - canvasH*0.5;
-        var groundLineToBottom = canvasH - groundLineY;
-        var ground = new createjs.Shape();
-        ground.graphics.s(stylebg.ground.strokeColor).
-                        f(stylebg.ground.fillColor).
-                        ss(stylebg.ground.strokeSize, 0, 0).
-                        r(0, groundLineY, canvasW, groundLineToBottom);
-        ground.visible = true;
-
-        // sky Graphics
-        var sky = new createjs.Shape();
-        sky.graphics.s(stylebg.sky.strokeColor).
-                        f(stylebg.sky.fillColor).
-                        ss(stylebg.sky.strokeSize, 0, 0).
-                        r(0, 0, W, groundLineY);
-        sky.visible = true;
+        var background = new createjs.Shape();
+        background.graphics.s(stylebg.strokeColor).
+                            f(stylebg.fillColor).
+                            ss(stylebg.strokeSize, 0, 0).
+                            r(0, 0, canvasW, canvasH);
 
         // add to background array
-        background_objs.push(ground);
-        background_objs.push(sky);
+        background_objs.background = background;
 
         return background_objs;
     }
@@ -297,20 +297,30 @@ var rotationGame = function(){
     function make_startPoint(pxStart, pyStart, stylesp){
         var startPoint_objs = {};
         // startPoint graphics
-        var startPoint = new createjs.Shape();
-        startPoint.graphics.s(stylesp.strokeColor).
-                        f(stylesp.fillColor).
-                        ss(stylesp.strokeSize, 0, 0).
-                        dc(pxStart, pyStart, stylesp.radius);
-        startPoint.visible = true;
+        var sp = new createjs.Shape();
+        sp.graphics.s(stylesp.sp.strokeColor).
+                        f(stylesp.sp.fillColor).
+                        ss(stylesp.sp.strokeSize, 0, 0).
+                        dc(pxStart, pyStart, stylesp.sp.radius);
+        sp.visible = true;
         // startPoint Actions
-        startPoint.addEventListener('mouseover', function(){
+        sp.addEventListener('mouseover', function(){
             if(wp.trialSection==='goToStart'){
+                startPoint.sp_glow.visible = true;
+                stage.update();
                 wp.tInStart = getTime();
             }  // end trialSection==='goToStart'
 
         });
-        startPoint_objs.startPoint = startPoint;
+        // glow graphics
+        var sp_glow = new createjs.Shape();
+        var sp_glow_rad = stylesp.sp.radius * stylesp.sp_glow.ratioGlowBigger;
+        sp_glow.graphics.s(stylesp.sp_glow.strokeColor).
+                                 f(stylesp.sp_glow.fillColor).
+                                 ss(stylesp.sp_glow.strokeSize, 0, 0).
+                                 dc(pxStart, pyStart, sp_glow_rad);
+        startPoint_objs.sp = sp;
+        startPoint_objs.sp_glow = sp_glow;
         return startPoint_objs;
     }
 
@@ -318,22 +328,21 @@ var rotationGame = function(){
     function make_choiceSet(){
         var choiceSet = {};
 
-        var choiceArc = new createjs.Shape();
-        var choiceArc_glow = new createjs.Shape();
-
+        var arc = new createjs.Shape();
+        var arc_glow = new createjs.Shape();
 
         // choiceArc Actions
-        choiceArc.addEventListener('mouseover', function(){
-            choiceArc_glow.visible = true;
+        arc.addEventListener('mouseover', function(){
+            arc_glow.visible = true;
             stage.update();
         });
 
-        choiceArc.addEventListener('mouseout', function(){
-            choiceArc_glow.visible = false;
+        arc.addEventListener('mouseout', function(){
+            arc_glow.visible = false;
             stage.update();
         });
 
-        choiceArc.addEventListener('click', function(){
+        arc.addEventListener('click', function(){
             if(wp.trialSection==='makeChoice'){
                 var pxDrill = stage.mouseX;
                 var pyDrill = stage.mouseY;
@@ -341,8 +350,8 @@ var rotationGame = function(){
             }
         });
 
-        choiceSet.arc = choiceArc;
-        choiceSet.arc_glow = choiceArc_glow;
+        choiceSet.arc = arc;
+        choiceSet.arc_glow = arc_glow;
         return choiceSet;
     }
 
@@ -537,6 +546,24 @@ var rotationGame = function(){
     function mod(a, b){return ((a%b)+b)%b;}
 
 
+    function keys(obj, sorted){
+        // gets object keys
+        sorted = typeof tobounds !== 'undefined' ? tobounds : true; // default sorted
+        var keys = [];
+        for(var key in obj){
+            if(obj.hasOwnProperty(key)){
+                keys.push(key);
+            }
+        }
+        return keys;
+    }
+
+
+    function objToArray(obj){
+        return keys(obj).map(function(k){return obj[k]});
+    }
+
+
     function jsb_recordTurkData(loObj, callback){
         var toSave = {};
         loObj.map(function(obj){  // for every obj in loObj...
@@ -553,34 +580,35 @@ var rotationGame = function(){
 
     //////// STYLE SHEETS FOR THE GAME
     var STYLE = [];
-    STYLE.background = [];
-    STYLE.background.ground = [];
-    STYLE.background.ground.strokeSize = 5;
-    STYLE.background.ground.strokeColor = '#A0522D';
-    STYLE.background.ground.fillColor = '#A0522D';
 
-    STYLE.background.sky = [];
-    STYLE.background.sky.strokeSize = 5;
-    STYLE.background.sky.strokeColor = '#33CCCC';
-    STYLE.background.sky.fillColor = '#33CCCC';
+    STYLE.background = [];
+    STYLE.background.strokeSize = 5;
+    STYLE.background.strokeColor = '#171717';
+    STYLE.background.fillColor = '#171717';
 
     STYLE.choiceSet = [];
     STYLE.choiceSet.arc = [];
-    STYLE.choiceSet.arc.strokeColor = '#D9BAAB';
+    STYLE.choiceSet.arc.strokeColor = '#8B8B8B';
     STYLE.choiceSet.arc.fillColor = null;
     STYLE.choiceSet.arc.strokeSize = 10;
 
     STYLE.choiceSet.arc_glow = [];
-    STYLE.choiceSet.arc_glow.strokeColor = '#EACDDC';
-    STYLE.choiceSet.arc_glow.strokeSize = 15;
+    STYLE.choiceSet.arc_glow.strokeColor = '#AEAEAE';
+    STYLE.choiceSet.arc_glow.ratioGlowBigger = 1.5;
 
     STYLE.scalar_obs = [];
     STYLE.scalar_obs.textstyle = '2em Helvetica';
     STYLE.scalar_obs.color = 'white';
 
     STYLE.startPoint = [];
-    STYLE.startPoint.strokeColor = '#D9BAAB';
-    STYLE.startPoint.fillColor = '#D9BAAB';
-    STYLE.startPoint.strokeSize = 2;
-    STYLE.startPoint.radius = 20;
+    STYLE.startPoint.sp = [];
+    STYLE.startPoint.sp.strokeColor = '#8B8B8B';
+    STYLE.startPoint.sp.fillColor = '#8B8B8B';
+    STYLE.startPoint.sp.strokeSize = 2;
+    STYLE.startPoint.sp.radius = 20;
+
+    STYLE.startPoint.sp_glow = [];
+    STYLE.startPoint.sp_glow.strokeColor = '#AEAEAE';
+    STYLE.startPoint.sp_glow.fillColor = '#AEAEAE';
+    STYLE.startPoint.sp_glow.ratioGlowBigger = 1.2;
 };
