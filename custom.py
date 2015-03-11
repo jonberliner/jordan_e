@@ -62,7 +62,8 @@ def init_experiment():
                2924494158, 1308408238, 2181850436, 2485685726, 1958873721])
 
     MINDEG = 0.  # minumum degree of choiceSet
-    MAXDEG = 180.  # max degree of choiceSet
+    MAXDEG = 360.  # max degree of choiceSet
+    RANGEDEG = MAXDEG - MINDEG
 
     ROTMAGPOOL = npa([15., 30., 45., 60.])  # proxy for 15, 30, 45, 60 degree rots
 
@@ -78,11 +79,12 @@ def init_experiment():
     # if None, all abrupt blocks.
     # (can be explicitely written as ['a', 'a', 'a', 'a'])
     AGTYPES = None
-
     # params for make_clickArcQueue, which determines startpoint and heading ang
-    NTARGET = 4
-    MINDEGARCPOOL = linspace(0., 360., NTARGET+1)[:-1]  # ccw-most part of choice arc
-    MAXDEGARCPOOL = MINDEGARCPOOL + 180.;   # cw-most part of choice arc
+    # NTARGET = 4
+    # MINDEGARCPOOL = linspace(0., 360., NTARGET+1)[:-1]  # ccw-most part of choice arc
+    MINDEGARCPOOL = npa([0.])
+    NTARGET = len(MINDEGARCPOOL)
+    MAXDEGARCPOOL = MINDEGARCPOOL + RANGEDEG   # cw-most part of choice arc
     assert NTRIAL % NTARGET == 0
     NEPICYCLE = NTRIAL / NTARGET  # how many epicycles through each target loc
     RADWRTXARC = 0.3  # percent of window width that determines dist(start, arc)
@@ -113,7 +115,7 @@ def init_experiment():
     subParams = rotationExperiment(**experParams)
 
     # add experiment params used on client side
-    NLASTTOSHOW = 2  # number of prev scores to show on arc
+    NLASTTOSHOW = 1  # number of prev scores to show on arc
     MSMINTIMEINSTART = 500  # ms to spend in startpoint before choice
     MSMAXTIMETOCHOICE = None
     MSSHOWFEEDBACK = 1000

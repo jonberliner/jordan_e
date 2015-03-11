@@ -26,7 +26,7 @@ var rotationGame = function(){
     var obs_array, drill_history;  // used to show (possibly persistent) feedback
     // containers that make up easeljs objects - objects are for easily
     // accessing shapes by name
-    var background, startPoint, choiceSet;
+    var background, startPoint, choiceSet, msgs;
     var a_background, a_startPoint, a_choiceSet; // arrays for ordered staging
     var QUEUES = {};  // queues containing trial params for each trial of experiment
     customRoute('init_experiment',  // call init_experiment in custom.py...
@@ -57,7 +57,7 @@ var rotationGame = function(){
 
                     tp.itrial = resp['inititrial'];
                     tp = set_itrialParams(tp.itrial, QUEUES);
-                    tsub.expScore = EP.INITSCORE;
+                    tsub.totalScore = EP.INITSCORE;
 
                     obs_array = [];
                     drill_history = [];
@@ -68,6 +68,7 @@ var rotationGame = function(){
                     a_startPoint = [startPoint.sp_glow, startPoint.sp];
                     choiceSet = make_choiceSet();
                     a_choiceSet = [choiceSet.arc_glow, choiceSet.arc];
+                    msgs = make_messages(STYLE.msgs);
 
                     update_choiceSet(tp.pxStart, tp.pyStart, tp.pradArc,
                                      tp.minthetaArc, tp.maxthetaArc, STYLE.choiceSet);
@@ -75,6 +76,7 @@ var rotationGame = function(){
                     stageArray(a_background);
                     stageArray(a_startPoint);
                     stageArray(a_choiceSet);
+                    stageObject(msgs);
 
                     // let's get it started!
                     setup_goToStart();
@@ -129,10 +131,14 @@ var rotationGame = function(){
         // what happens when we move to 'goToStart' section of a trial
         console.log('setup_goToStart was called');
         wp.trialSection = 'goToStart';
+        unstageArray(obs_array);
         choiceSet.arc.visible = false;
         choiceSet.arc_glow.visible = false;
         startPoint.sp.visible = true;
         startPoint.sp_glow.visible = false;
+        msgs.goToStart.visible = true;
+        msgs.tooSlow.visible = false;
+        msgs.totalScore.visible = true;
         stage.update();
     }
 
@@ -140,6 +146,7 @@ var rotationGame = function(){
     function setup_makeChoice(){
         // what happens when we move to 'makeChoice' section of a trial
         wp.trialSection = 'makeChoice';
+        stageArray(obs_array);
         choiceSet.arc_glow.visible = false;
         choiceSet.arc.visible = true;
         startPoint.sp.visible = false;
@@ -154,10 +161,16 @@ var rotationGame = function(){
         wp.tFeedbackOn = getTime();
         unstageArray(obs_array);
         // show scores from last NLASTTOSHOW trials
+        // if(EP.FEEDBACKTYPE==='clickLocation'){
         obs_array = make_vis_obs_array(drill_history, tp.mindegArc,
-            function(elt){return nlast(elt, tp.itrial, EP.NLASTTOSHOW)},
+        function(elt){return nlast(elt, tp.itrial, EP.NLASTTOSHOW)},
             STYLE.scalar_obs);
         stageArray(obs_array);
+        // }
+        // else if(EP.FEEDBACKTYPE==='aboveStartPoint'){
+        //     obs_array =
+        // }
+
         stage.update();
     }
 
@@ -214,6 +227,12 @@ var rotationGame = function(){
         // convert to theta for arcs
         tp.minthetaArc = degToRad(tp.mindegArc);
         tp.maxthetaArc = degToRad(tp.maxdegArc);
+        if(tp.mindegArc===tp.maxdegArc){
+            // correct for max equalling min for drawing arcs
+            tp.maxdegArc += 360.
+            tp.maxthetaArc += 2.*Math.PI;
+        }
+
 
         tp.itrial = itrial;
 
@@ -246,19 +265,22 @@ var rotationGame = function(){
     function choice_made(pxDrill, pyDrill){
         // what happens after a choice is made
         console.log('choice_made called');
-        store_thisTrial(pxDrill, pyDrill, setup_showFeedback);
-    }
-
-
-    function store_thisTrial(pxDrill, pyDrill, callback){
-        // store things from this trial and then run callback
+        tsub.choiceRT = getTime() - wp.tChoiceStarted;
         tsub.pxDrill = pxDrill;
         tsub.pyDrill = pyDrill;
         tsub.degDrill = pToDegDrill(pxDrill, pyDrill, tp.pxStart, tp.pyStart);
         tsub.signederror = get_signederror(tsub.degDrill, tp.degOpt, tp.mindegArc);
         tsub.fDrill = errorToPoints(Math.abs(tsub.signederror), EP.RANGEDEG); // get the reward
-        tsub.expScore += tsub.fDrill;
-        tsub.choiceRT = getTime() - wp.tChoiceStarted;
+
+        tsub.totalScore += tsub.fDrill;
+        msgs.totalScore.text = 'score: ' + tsub.totalScore.toString();
+
+        store_thisTrial(setup_showFeedback);
+    }
+
+
+    function store_thisTrial(callback){
+        // store things from this trial and then run callback
         drill_history.push({'px': tsub.pxDrill,
                             'py': tsub.pyDrill,
                             'degDrill': tsub.degDrill,
@@ -272,9 +294,12 @@ var rotationGame = function(){
     //////// GAME OBJECTS AND OBJECT CONSTRUCTORS
     function make_messages(stylemsgs){
         var msgs = {};
-        msgs.tooSlow = new createjs.Text();
-        msgs.tooSlow.text('TOO SLOW');
-
+        for(var msg in stylemsgs){
+                msgs[msg] = new createjs.Text();
+            for(var prop in stylemsgs[msg]){
+                msgs[msg][prop] = stylemsgs[msg][prop]
+            }
+        }
         return msgs;
     }
 
@@ -424,21 +449,23 @@ var rotationGame = function(){
     }
 
 
-    function stageArray(shapeArray){
+    function stageArray(shapeArray, visible){
         // add all elements in shapeArray to the canvas
+        visible = typeof visible !== 'undefined' ? visible : true;
         shapeArray.map(function(elt){
             stage.addChild(elt);
-            elt.visible = true;
+            elt.visible = visible;
         });
         stage.update();
     }
 
 
-    function stageObject(object){
+    function stageObject(object, visible){
         // add all fields of object to the canvas
+        visible = typeof visible !== 'undefined' ? visible : true;
         for (var field in object){
             stage.addChild(object[field]);
-            object[field].visible = true;
+            object[field].visible = visible;
         }
         stage.update();
     }
@@ -611,4 +638,27 @@ var rotationGame = function(){
     STYLE.startPoint.sp_glow.strokeColor = '#AEAEAE';
     STYLE.startPoint.sp_glow.fillColor = '#AEAEAE';
     STYLE.startPoint.sp_glow.ratioGlowBigger = 1.2;
+
+    STYLE.msgs = [];
+    STYLE.msgs.goToStart = [];
+    STYLE.msgs.goToStart.text = 'GO TO START';
+    STYLE.msgs.goToStart.color = '#AEAEAE';
+    STYLE.msgs.goToStart.font = '5em Helvetica';
+    STYLE.msgs.goToStart.x = H / 8.;
+    STYLE.msgs.goToStart.y = W / 2.;
+
+    STYLE.msgs.tooSlow = [];
+    STYLE.msgs.tooSlow.text = 'TOO SLOW';
+    STYLE.msgs.tooSlow.color = '#AEAEAE';
+    STYLE.msgs.tooSlow.font = '10em Helvetica';
+
+    STYLE.msgs.totalScore = [];
+    STYLE.msgs.totalScore.color = '#AEAEAE';
+    STYLE.msgs.totalScore.font = '2em Helvetica';
+    STYLE.msgs.totalScore.regX = 0.;
+    STYLE.msgs.totalScore.regY = 0.;
+    STYLE.msgs.totalScore.textAlign = 'left';
+    STYLE.msgs.totalScore.x = 10.;
+    STYLE.msgs.totalScore.y = H - 40.;
+
 };
