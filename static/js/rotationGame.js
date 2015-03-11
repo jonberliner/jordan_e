@@ -23,7 +23,7 @@ var rotationGame = function(){
     var tp = {};  // params that change trial by trial
     var wp = {};  // params that can change within a trial
     var tsub = {}; // trial responses from subject that change trial by trial
-    var obs_array, drill_history;  // used to show (possibly persistent) feedback
+    var fb_array, drill_history;  // used to show (possibly persistent) feedback
     // containers that make up easeljs objects - objects are for easily
     // accessing shapes by name
     var background, startPoint, choiceSet, msgs;
@@ -47,7 +47,6 @@ var rotationGame = function(){
                     QUEUES.DEGOPT = resp['degoptqueue'];  // which location gets 100% points?
                     EP.NTRIAL = QUEUES.DEGOPT.length;
 
-                    EP.NLASTTOSHOW = resp['nlasttoshow'];
                     EP.MSMINTIMEINSTART = resp['msmintimeinstart'];
                     EP.MSMAXTIMETOCHOICE = resp['msmaxtimetochoice'];
                     if(EP.MSMAXTIMETOCHOICE==='None'){
@@ -55,11 +54,17 @@ var rotationGame = function(){
                     }
                     EP.MSSHOWFEEDBACK = resp['msshowfeedback'];
 
+                    EP.FEEDBACKTYPE = resp['feedbacktype'];
+                    EP.NLASTTOSHOW = resp['nlasttoshow'];
+                    EP.PERCENTBETWEENSPANDARC = resp['percentbetweenspandarc'];
+                    EP.SDPERCENTRADWIGGLEFB = resp['sdpercentradwigglefb'];
+                    EP.SDPERCENTDEGWIGGLEFB = resp['sdpercentdegwigglefb'];
+
                     tp.itrial = resp['inititrial'];
                     tp = set_itrialParams(tp.itrial, QUEUES);
                     tsub.totalScore = EP.INITSCORE;
 
-                    obs_array = [];
+                    fb_array = [];
                     drill_history = [];
 
                     background = make_background(STYLE.background, W, H);
@@ -131,7 +136,7 @@ var rotationGame = function(){
         // what happens when we move to 'goToStart' section of a trial
         console.log('setup_goToStart was called');
         wp.trialSection = 'goToStart';
-        unstageArray(obs_array);
+        unstageArray(fb_array);
         choiceSet.arc.visible = false;
         choiceSet.arc_glow.visible = false;
         startPoint.sp.visible = true;
@@ -146,7 +151,7 @@ var rotationGame = function(){
     function setup_makeChoice(){
         // what happens when we move to 'makeChoice' section of a trial
         wp.trialSection = 'makeChoice';
-        stageArray(obs_array);
+        stageArray(fb_array);
         choiceSet.arc_glow.visible = false;
         choiceSet.arc.visible = true;
         startPoint.sp.visible = false;
@@ -156,21 +161,59 @@ var rotationGame = function(){
     }
 
 
+    function make_aboveStartPointPosn(pxStart, pyStart,
+                                      pradArc, degFB,
+                                      percentBtStartPointAndArc,
+                                      sdpercentradWiggle,
+                                      sdpercentdegWiggle,
+                                      rangedeg){
+        // default no wiggle
+        sdpercentradWiggle = typeof sdpercentradWiggle !== 'undefined' ?
+            sdpercentradWiggle : 0;
+        sdpercentdegWiggle = typeof sdpercentdegWiggle !== 'undefined' ?
+            sdpercentdegWiggle : 0;
+
+        // convert percentages to numbers for randomness
+        var pradFB = pradArc * percentBtStartPointAndArc;
+        var sdradWiggle = sdpercentradWiggle * pradFB;
+        var sddegWiggle = sdpercentdegWiggle * rangedeg;
+        // draw random posn
+        var prFB = randn(pradFB, sdradWiggle);
+        var degFB = randn(degFB, sddegWiggle);
+        var thetaFB = degToRad(degFB);
+
+        // convert to cartesian and shift wrt startPoint
+        var pxFB = prFB * Math.cos(thetaFB) + pxStart;
+        var pyFB = - (prFB * Math.sin(thetaFB)) + pyStart;
+
+        return {'px': pxFB, 'py': pyFB};
+    }
+
+
     function setup_showFeedback(){
         wp.trialSection = 'showFeedback';
         wp.tFeedbackOn = getTime();
-        unstageArray(obs_array);
-        // show scores from last NLASTTOSHOW trials
-        // if(EP.FEEDBACKTYPE==='clickLocation'){
-        obs_array = make_vis_obs_array(drill_history, tp.mindegArc,
-        function(elt){return nlast(elt, tp.itrial, EP.NLASTTOSHOW)},
-            STYLE.scalar_obs);
-        stageArray(obs_array);
-        // }
-        // else if(EP.FEEDBACKTYPE==='aboveStartPoint'){
-        //     obs_array =
-        // }
+        unstageArray(fb_array);
+        if(EP.FEEDBACKTYPE==='aboveStartPoint'){
+            var posn = make_aboveStartPointPosn(tp.pxStart, tp.pyStart,
+                                                tp.pradArc, tp.degFB,
+                                                EP.PERCENTBETWEENSPANDARC,
+                                                EP.SDPERCENTRADWIGGLEFB,
+                                                EP.SDPERCENTDEGWIGGLEFB,
+                                                EP.RANGEDEG);
 
+            console.log(posn);
+
+            fb_array = [ScalarObs(posn.px, posn.py, tsub.trialScore,
+                                 STYLE.scalar_obs)];
+        }
+        else if(EP.FEEDBACKTYPE==='clickLocation'){
+            // show scores from last NLASTTOSHOW trials
+            fb_array = make_clickloc_scalar_array(drill_history, tp.mindegArc,
+            function(elt){return nlast(elt, tp.itrial, EP.NLASTTOSHOW)},
+                STYLE.scalar_obs);
+        }
+        stageArray(fb_array);
         stage.update();
     }
 
@@ -197,12 +240,12 @@ var rotationGame = function(){
         update_choiceSet(tp.pxStart, tp.pyStart, tp.pradArc,
                          tp.minthetaArc, tp.maxthetaArc, stylecs);
         // update feedback
-        unstageArray(obs_array);
+        unstageArray(fb_array);
         // show scores from last NLASTTOSHOW trials
-        obs_array = make_vis_obs_array(drill_history, tp.mindegArc,
+        fb_array = make_clickloc_scalar_array(drill_history, tp.mindegArc,
             function(elt){return nlast(elt, itrial-1, ep.NLASTTOSHOW)},
             STYLE.scalar_obs);
-        stageArray(obs_array);
+        stageArray(fb_array);
         setup_goToStart();
     }
 
@@ -220,6 +263,7 @@ var rotationGame = function(){
         tp.mindegArc = mod(queues.MINDEGARC[itrial], 360.);
         tp.maxdegArc = mod(queues.MAXDEGARC[itrial], 360.);
         tp.rangedegArc = tp.maxdegArc - tp.mindegArc;
+        tp.degFB = 90.;  // FIXME: needs to be abstracted
         // convert what's needed to pixel space
         tp.pradArc = tp.radwrtxArc * W;
         tp.pxStart = tp.xStart * W;
@@ -270,9 +314,9 @@ var rotationGame = function(){
         tsub.pyDrill = pyDrill;
         tsub.degDrill = pToDegDrill(pxDrill, pyDrill, tp.pxStart, tp.pyStart);
         tsub.signederror = get_signederror(tsub.degDrill, tp.degOpt, tp.mindegArc);
-        tsub.fDrill = errorToPoints(Math.abs(tsub.signederror), EP.RANGEDEG); // get the reward
+        tsub.trialScore = errorToScore(Math.abs(tsub.signederror), EP.RANGEDEG); // get the reward
 
-        tsub.totalScore += tsub.fDrill;
+        tsub.totalScore += tsub.trialScore;
         msgs.totalScore.text = 'score: ' + tsub.totalScore.toString();
 
         store_thisTrial(setup_showFeedback);
@@ -285,7 +329,7 @@ var rotationGame = function(){
                             'py': tsub.pyDrill,
                             'degDrill': tsub.degDrill,
                             'mindegArc': tp.mindegArc,
-                            'f': tsub.fDrill,
+                            'f': tsub.trialScore,
                             'itrial': tp.itrial});
         jsb_recordTurkData([EP, tp, tsub], callback);
     }
@@ -417,7 +461,7 @@ var rotationGame = function(){
     }
 
 
-    function make_vis_obs_array(drill_history, mindegArc, critfcn, styleso) {
+    function make_clickloc_scalar_array(drill_history, mindegArc, critfcn, styleso) {
         // takes drill_history, filters by crit, returns array of ScalarObs
         var to_show = drill_history.filter(critfcn);  // filter to only shown
         // rotate to match choiceArc's rotation for this trial
@@ -429,10 +473,10 @@ var rotationGame = function(){
                                   elt.py = pposn.y;
                                   return elt;});
         // make obs for all valid sams in drill_history
-        var obs_array = to_show.map(
+        var fb_array = to_show.map(
             function(elt){return ScalarObs(elt.px, elt.py, elt.f, styleso)}
         );
-        return obs_array;
+        return fb_array;
     }
 
 
@@ -490,7 +534,7 @@ var rotationGame = function(){
     }
 
 
-    function errorToPoints(unsignederror, degrange) {
+    function errorToScore(unsignederror, degrange) {
         return Math.round((1 - (unsignederror/degrange)) * 100);
     }
 
@@ -571,6 +615,30 @@ var rotationGame = function(){
 
     // use instead of % b.c. javascript can't do negative mod
     function mod(a, b){return ((a%b)+b)%b;}
+
+
+    function rand(min, max){
+        min = typeof min !== 'undefined' ? min : 0;
+        max = typeof max !== 'undefined' ? max : 1;
+
+        var range = max - min;
+        return Math.random() * range + min;
+    }
+
+    function randn(mu, sd){
+        // generate gaussian rand fcns using box-mueller method
+        mu = typeof mu !== 'undefined' ? mu : 0;
+        sd = typeof sd !== 'undefined' ? sd : 1;
+
+        var x1, x2;
+        var w = 99.;
+        while(w >= 1.){
+            x1 = 2. * rand() - 1.;
+            x2 = 2 * rand() - 1;
+            w = x1*x1 + x2*x2;
+        }
+        return mu + (x1 * w * sd);
+    }
 
 
     function keys(obj, sorted){

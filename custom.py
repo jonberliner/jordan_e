@@ -115,15 +115,33 @@ def init_experiment():
     subParams = rotationExperiment(**experParams)
 
     # add experiment params used on client side
-    NLASTTOSHOW = 1  # number of prev scores to show on arc
     MSMINTIMEINSTART = 500  # ms to spend in startpoint before choice
     MSMAXTIMETOCHOICE = None
     MSSHOWFEEDBACK = 1000
 
-    experParams['nlasttoshow'] = NLASTTOSHOW
+    # must be in ['aboveStartPoint', 'clickLocation']
+    FEEDBACKTYPE = 'aboveStartPoint'
+
+    SDPERCENTRADWIGGLEFB = 0.1  # sd for wiggling rad wrt radius of choiceArc
+    SDPERCENTDEGWIGGLEFB = 0.1  # sd for wiggling angle wrt RANGEDEG of choiceArc
+
+    # number of prev scores to show on arc.
+    # must be None if fbtype != 'clickLocation'
+    NLASTTOSHOW = None
+    # how far bt sp and arc should fb be? must be > 0
+    # must be None if fbtype != 'aboveStartPoint'
+    PERCENTBETWEENSPANDARC = 0.6
+    if FEEDBACKTYPE=='aboveStartPoint': assert not NLASTTOSHOW
+    if FEEDBACKTYPE=='clickLocation': assert not PERCENTBETWEENSPANDARC
+
     experParams['msmintimeinstart'] = MSMINTIMEINSTART
     experParams['msmaxtimetochoice'] = MSMAXTIMETOCHOICE
     experParams['msshowfeedback'] = MSSHOWFEEDBACK
+    experParams['feedbacktype'] = FEEDBACKTYPE
+    experParams['nlasttoshow'] = NLASTTOSHOW
+    experParams['percentbetweenspandarc'] = PERCENTBETWEENSPANDARC
+    experParams['sdpercentradwigglefb'] = SDPERCENTRADWIGGLEFB
+    experParams['sdpercentdegwigglefb'] = SDPERCENTDEGWIGGLEFB
     experParams['ntrial'] = NTRIAL
 
     # bundle response to send
