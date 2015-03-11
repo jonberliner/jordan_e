@@ -77,11 +77,15 @@ var rotationGame = function(){
 
                     update_choiceSet(tp.pxStart, tp.pyStart, tp.pradArc,
                                      tp.minthetaArc, tp.maxthetaArc, STYLE.choiceSet);
+                    update_totalScore(tsub.totalScore);
+                    msgs.totalScore.visible = true; // visible through whole game
 
                     stageArray(a_background);
                     stageArray(a_startPoint);
                     stageArray(a_choiceSet);
-                    stageObject(msgs);
+                    stageObject(msgs, false);
+                    msgs.totalScore.visible = true;  // totalScore always visible
+                    
 
                     // let's get it started!
                     setup_goToStart();
@@ -134,16 +138,19 @@ var rotationGame = function(){
     //// setups for various parts of a trial
     function setup_goToStart(){
         // what happens when we move to 'goToStart' section of a trial
-        console.log('setup_goToStart was called');
         wp.trialSection = 'goToStart';
         unstageArray(fb_array);
+
+        // update objects
         choiceSet.arc.visible = false;
         choiceSet.arc_glow.visible = false;
         startPoint.sp.visible = true;
         startPoint.sp_glow.visible = false;
+
+        // update messages
         msgs.goToStart.visible = true;
         msgs.tooSlow.visible = false;
-        msgs.totalScore.visible = true;
+
         stage.update();
     }
 
@@ -151,67 +158,47 @@ var rotationGame = function(){
     function setup_makeChoice(){
         // what happens when we move to 'makeChoice' section of a trial
         wp.trialSection = 'makeChoice';
-        stageArray(fb_array);
+        // fb only shown during reach in this condition
+        if(EP.FEEDBACKTYPE==='clickLocation'){
+            stageArray(fb_array);    
+        }
+
+        // update objects
         choiceSet.arc_glow.visible = false;
         choiceSet.arc.visible = true;
         startPoint.sp.visible = false;
         startPoint.sp_glow.visible = false;
+
+        // update messages
+        msgs.goToStart.visible = false;
+        msgs.makeChoice.visible = true;
+
         stage.update();
         wp.tChoiceStarted = getTime();  // start choice timer
-    }
-
-
-    function make_aboveStartPointPosn(pxStart, pyStart,
-                                      pradArc, degFB,
-                                      percentBtStartPointAndArc,
-                                      sdpercentradWiggle,
-                                      sdpercentdegWiggle,
-                                      rangedeg){
-        // default no wiggle
-        sdpercentradWiggle = typeof sdpercentradWiggle !== 'undefined' ?
-            sdpercentradWiggle : 0;
-        sdpercentdegWiggle = typeof sdpercentdegWiggle !== 'undefined' ?
-            sdpercentdegWiggle : 0;
-
-        // convert percentages to numbers for randomness
-        var pradFB = pradArc * percentBtStartPointAndArc;
-        var sdradWiggle = sdpercentradWiggle * pradFB;
-        var sddegWiggle = sdpercentdegWiggle * rangedeg;
-        // draw random posn
-        var prFB = randn(pradFB, sdradWiggle);
-        var degFB = randn(degFB, sddegWiggle);
-        var thetaFB = degToRad(degFB);
-
-        // convert to cartesian and shift wrt startPoint
-        var pxFB = prFB * Math.cos(thetaFB) + pxStart;
-        var pyFB = - (prFB * Math.sin(thetaFB)) + pyStart;
-
-        return {'px': pxFB, 'py': pyFB};
     }
 
 
     function setup_showFeedback(){
         wp.trialSection = 'showFeedback';
         wp.tFeedbackOn = getTime();
+        
+        // update messages
+        msgs.makeChoice.visible = false;
+        // show feedback
         unstageArray(fb_array);
         if(EP.FEEDBACKTYPE==='aboveStartPoint'){
-            var posn = make_aboveStartPointPosn(tp.pxStart, tp.pyStart,
-                                                tp.pradArc, tp.degFB,
-                                                EP.PERCENTBETWEENSPANDARC,
-                                                EP.SDPERCENTRADWIGGLEFB,
-                                                EP.SDPERCENTDEGWIGGLEFB,
-                                                EP.RANGEDEG);
-
-            console.log(posn);
-
-            fb_array = [ScalarObs(posn.px, posn.py, tsub.trialScore,
-                                 STYLE.scalar_obs)];
+            fb_array = make_aboveStartPoint_scalar_array(tp.pxStart, tp.pyStart,
+                                                         tp.pradArc, tp.degFB,
+                                                         EP.PERCENTBETWEENSPANDARC,
+                                                         EP.SDPERCENTRADWIGGLEFB,
+                                                         EP.SDPERCENTDEGWIGGLEFB,
+                                                         EP.RANGEDEG);
         }
         else if(EP.FEEDBACKTYPE==='clickLocation'){
             // show scores from last NLASTTOSHOW trials
             fb_array = make_clickloc_scalar_array(drill_history, tp.mindegArc,
-            function(elt){return nlast(elt, tp.itrial, EP.NLASTTOSHOW)},
-                STYLE.scalar_obs);
+                        function(elt){return nlast(elt, tp.itrial, EP.NLASTTOSHOW)},
+                        STYLE.scalar_obs);
         }
         stageArray(fb_array);
         stage.update();
@@ -317,9 +304,14 @@ var rotationGame = function(){
         tsub.trialScore = errorToScore(Math.abs(tsub.signederror), EP.RANGEDEG); // get the reward
 
         tsub.totalScore += tsub.trialScore;
-        msgs.totalScore.text = 'score: ' + tsub.totalScore.toString();
+        update_totalScore(tsub.totalScore);
 
         store_thisTrial(setup_showFeedback);
+    }
+
+
+    function update_totalScore(totalScore){
+        msgs.totalScore.text = 'score: ' + totalScore.toString();
     }
 
 
@@ -402,13 +394,18 @@ var rotationGame = function(){
 
         // choiceArc Actions
         arc.addEventListener('mouseover', function(){
-            arc_glow.visible = true;
-            stage.update();
+            if(wp.trialSection==='makeChoice'){
+                arc_glow.visible = true;
+                stage.update();    
+            }
+            
         });
 
         arc.addEventListener('mouseout', function(){
-            arc_glow.visible = false;
-            stage.update();
+            if(wp.trialSection==='makeChoice'){
+                arc_glow.visible = false;
+                stage.update();
+            }
         });
 
         arc.addEventListener('click', function(){
@@ -476,6 +473,37 @@ var rotationGame = function(){
         var fb_array = to_show.map(
             function(elt){return ScalarObs(elt.px, elt.py, elt.f, styleso)}
         );
+        return fb_array;
+    }
+
+
+    function make_aboveStartPoint_scalar_array(pxStart, pyStart,
+                                               pradArc, degFB,
+                                               percentBtStartPointAndArc,
+                                               sdpercentradWiggle,
+                                               sdpercentdegWiggle,
+                                               rangedeg){
+        // default no wiggle
+        sdpercentradWiggle = typeof sdpercentradWiggle !== 'undefined' ?
+            sdpercentradWiggle : 0;
+        sdpercentdegWiggle = typeof sdpercentdegWiggle !== 'undefined' ?
+            sdpercentdegWiggle : 0;
+
+        // convert percentages to numbers for randomness
+        var pradFB = pradArc * percentBtStartPointAndArc;
+        var sdradWiggle = sdpercentradWiggle * pradFB;
+        var sddegWiggle = sdpercentdegWiggle * rangedeg;
+        // draw random posn
+        var prFB = randn(pradFB, sdradWiggle);
+        var degFB = randn(degFB, sddegWiggle);
+        var thetaFB = degToRad(degFB);
+
+        // convert to cartesian and shift wrt startPoint
+        var pxFB = prFB * Math.cos(thetaFB) + pxStart;
+        var pyFB = - (prFB * Math.sin(thetaFB)) + pyStart;
+
+        fb_array = [ScalarObs(pxFB, pyFB, tsub.trialScore, STYLE.scalar_obs)];
+
         return fb_array;
     }
 
@@ -676,11 +704,14 @@ var rotationGame = function(){
     //////// STYLE SHEETS FOR THE GAME
     var STYLE = [];
 
+    // background.  should be purely cosmetic
     STYLE.background = [];
     STYLE.background.strokeSize = 5;
     STYLE.background.strokeColor = '#171717';
     STYLE.background.fillColor = '#171717';
 
+    // choiceSet is the abstract term for whatever objects you can click to make
+    // a choice.  in this case, we have a single arc, but can be arbitrary
     STYLE.choiceSet = [];
     STYLE.choiceSet.arc = [];
     STYLE.choiceSet.arc.strokeColor = '#8B8B8B';
@@ -691,10 +722,12 @@ var rotationGame = function(){
     STYLE.choiceSet.arc_glow.strokeColor = '#AEAEAE';
     STYLE.choiceSet.arc_glow.ratioGlowBigger = 1.5;
 
+    // feedback objects (TODO: add endpoint, online)
     STYLE.scalar_obs = [];
     STYLE.scalar_obs.textstyle = '2em Helvetica';
     STYLE.scalar_obs.color = 'white';
 
+    // startPoint
     STYLE.startPoint = [];
     STYLE.startPoint.sp = [];
     STYLE.startPoint.sp.strokeColor = '#8B8B8B';
@@ -706,14 +739,25 @@ var rotationGame = function(){
     STYLE.startPoint.sp_glow.strokeColor = '#AEAEAE';
     STYLE.startPoint.sp_glow.fillColor = '#AEAEAE';
     STYLE.startPoint.sp_glow.ratioGlowBigger = 1.2;
-
+    
+    // messages shown throughout game
     STYLE.msgs = [];
+
     STYLE.msgs.goToStart = [];
     STYLE.msgs.goToStart.text = 'GO TO START';
     STYLE.msgs.goToStart.color = '#AEAEAE';
-    STYLE.msgs.goToStart.font = '5em Helvetica';
-    STYLE.msgs.goToStart.x = H / 8.;
-    STYLE.msgs.goToStart.y = W / 2.;
+    STYLE.msgs.goToStart.font = '2em Helvetica';
+    STYLE.msgs.goToStart.textAlign = 'center';
+    STYLE.msgs.goToStart.x = W / 2.;
+    STYLE.msgs.goToStart.y = H / 20.;
+
+    STYLE.msgs.makeChoice = [];
+    STYLE.msgs.makeChoice.text = 'CLICK RING TO MAKE CHOICE';
+    STYLE.msgs.makeChoice.color = '#AEAEAE';
+    STYLE.msgs.makeChoice.font = '2em Helvetica';
+    STYLE.msgs.makeChoice.textAlign = 'center';
+    STYLE.msgs.makeChoice.x = W / 2.;
+    STYLE.msgs.makeChoice.y = H / 20.;
 
     STYLE.msgs.tooSlow = [];
     STYLE.msgs.tooSlow.text = 'TOO SLOW';
