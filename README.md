@@ -9,5 +9,3 @@
 - add ringbreaking option
 - colorcode fb
 - add target hitting section
-
-###HI, JORDAN!
