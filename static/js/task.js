@@ -45,14 +45,13 @@ var instructionPages = [ // indicate which are specifically instructions
 var currentview;  // psiturk residue (not sure if needed)
 $(window).load( function(){
     // ensure uniform experiment size
-    var WIDTH = 1028;
-    var HEIGHT = 768;
+    var WIDTH = 600;
+    var HEIGHT = 800;
     var BUFFER = 100;
     // center window on computer screen
     window.resizeTo(WIDTH + BUFFER, HEIGHT + BUFFER);
     window.moveTo(((screen.width - WIDTH) / 2), 0); //((screen.height - height) / 2));
-    psiTurk.doInstructions(
-        instructionPages, // a list of instruction pages you want to display in sequence
+    b4
         function(){  // when instructions done...
             psiTurk.finishInstructions();  // JBEDIT: don't know what this does but it's important
             psiTurk.showPage('stage.html'); // load game stage (rather than experiment stage)
